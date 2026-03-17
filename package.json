@@ -1,0 +1,18 @@
+{
+  "name": "p2p-message",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Browser-based P2P encrypted chat with manual invite signaling",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/preview.mjs",
+    "smoke": "node scripts/smoke-test.mjs",
+    "test": "vitest run",
+    "test:ci": "node scripts/test-ci.mjs",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,1185 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"template_type": "project_task_template",
+	"version": "3.0",
+	"description": "Agentic project task template for TaskManager. Designed for AI agent readability: flat, consistent, enum-validated, minimal redundancy.",
+	"enums": {
+		"status": [
+			"Not Started",
+			"In Progress",
+			"Blocked",
+			"In Review",
+			"Done",
+			"Cancelled"
+		],
+		"project_status": [
+			"Not Started",
+			"Planning",
+			"In Progress",
+			"On Hold",
+			"Completed",
+			"Cancelled"
+		],
+		"priority": [
+			"Critical",
+			"High",
+			"Medium",
+			"Low"
+		],
+		"complexity": [
+			"Very Low",
+			"Low",
+			"Medium",
+			"High",
+			"Very High"
+		],
+		"dependency_type": [
+			"FS",
+			"SS",
+			"FF",
+			"SF"
+		],
+		"risk_probability": [
+			"Low",
+			"Medium",
+			"High"
+		],
+		"risk_impact": [
+			"Low",
+			"Medium",
+			"High",
+			"Critical"
+		],
+		"risk_score": [
+			"Low",
+			"Medium",
+			"High",
+			"Critical"
+		],
+		"risk_status": [
+			"Open",
+			"Mitigated",
+			"Closed"
+		],
+		"change_status": [
+			"Pending",
+			"Approved",
+			"Rejected"
+		],
+		"milestone_status": [
+			"Not Started",
+			"In Progress",
+			"Achieved",
+			"Missed"
+		],
+		"sprint_status": [
+			"Not Started",
+			"Active",
+			"Completed"
+		],
+		"worker_role": [
+			"Project Manager",
+			"Developer",
+			"Designer",
+			"QA Engineer",
+			"DevOps",
+			"Business Analyst",
+			"Stakeholder",
+			"Other"
+		]
+	},
+	"project": {
+		"name": "P2P Message",
+		"description": "Browser-based peer-to-peer encrypted chat with manual invite signaling, modular architecture, and a future path for stronger signaling and post-quantum crypto adapters.",
+		"start_date": "2026-03-17",
+		"end_date": "2026-05-29",
+		"status": "In Progress",
+		"timezone": "UTC",
+		"currency": "USD",
+		"budget": 0,
+		"budget_spent": 0,
+		"project_manager": {
+			"name": "Project Owner",
+			"email": "owner@example.com"
+		},
+		"stakeholders": [
+			{
+				"name": "Security Reviewer",
+				"email": "security@example.com",
+				"role": "Stakeholder"
+			}
+		],
+		"tags": [
+			"p2p",
+			"webrtc",
+			"webcrypto",
+			"e2e-encryption",
+			"browser"
+		],
+		"milestones": [
+			{
+				"name": "Architecture Baseline",
+				"due_date": "2026-03-24",
+				"description": "Repository structure, documentation set, and core contracts are defined.",
+				"status": "Achieved",
+				"linked_task_names": [
+					"Organize project documentation",
+					"Scaffold hexagonal source structure"
+				]
+			},
+			{
+				"name": "Secure Messaging MVP",
+				"due_date": "2026-05-15",
+				"description": "Two browsers can connect through manual invite exchange and send encrypted messages.",
+				"status": "In Progress",
+				"linked_task_names": [
+					"Implement manual invite signaling",
+					"Implement WebRTC transport adapter",
+					"Implement WebCrypto crypto adapter",
+					"Build chat session use cases",
+					"Build MVP UI"
+				]
+			},
+			{
+				"name": "Release Readiness",
+				"due_date": "2026-05-29",
+				"description": "Testing, security review, and release documentation are complete.",
+				"status": "Not Started",
+				"linked_task_names": [
+					"Validate browsers and failure paths",
+					"Run security hardening review",
+					"Prepare release documentation"
+				]
+			}
+		],
+		"sprints": [
+			{
+				"name": "Sprint 1",
+				"start_date": "2026-03-17",
+				"end_date": "2026-03-28",
+				"goal": "Finalize documentation, source structure, and interface contracts.",
+				"status": "Active"
+			},
+			{
+				"name": "Sprint 2",
+				"start_date": "2026-03-29",
+				"end_date": "2026-04-18",
+				"goal": "Implement signaling, transport, and crypto adapters for the MVP.",
+				"status": "Not Started"
+			},
+			{
+				"name": "Sprint 3",
+				"start_date": "2026-04-19",
+				"end_date": "2026-05-09",
+				"goal": "Build use cases and UI, then validate user flows.",
+				"status": "Not Started"
+			},
+			{
+				"name": "Sprint 4",
+				"start_date": "2026-05-10",
+				"end_date": "2026-05-29",
+				"goal": "Finish testing, security review, and release preparation.",
+				"status": "Not Started"
+			}
+		],
+		"risks": [
+			{
+				"name": "Handshake UX complexity",
+				"description": "Manual offer and answer exchange may confuse users or lead to abandoned sessions.",
+				"probability": "Medium",
+				"impact": "High",
+				"score": "High",
+				"mitigation_plan": "Design a guided invite UI, add validation and expiry feedback, and test the flow in two browsers early.",
+				"owner": "Project Owner",
+				"status": "Open"
+			},
+			{
+				"name": "Browser interoperability gaps",
+				"description": "WebRTC and WebCrypto behavior may differ between browsers or versions.",
+				"probability": "Medium",
+				"impact": "High",
+				"score": "High",
+				"mitigation_plan": "Target a narrow MVP browser matrix first and add compatibility checks before release.",
+				"owner": "Project Owner",
+				"status": "Open"
+			},
+			{
+				"name": "Overstated security claims",
+				"description": "The project could accidentally imply stronger guarantees than the implemented crypto provides.",
+				"probability": "Low",
+				"impact": "Critical",
+				"score": "High",
+				"mitigation_plan": "Keep a dedicated security document, review wording before release, and clearly separate MVP protections from future post-quantum goals.",
+				"owner": "Security Reviewer",
+				"status": "Open"
+			}
+		],
+		"change_log": [],
+		"closure": {
+			"actual_end_date": null,
+			"delivered_on_time": null,
+			"delivered_on_budget": null,
+			"lessons_learned": [],
+			"sign_off_by": null,
+			"sign_off_date": null
+		}
+	},
+	"categories": [
+		{
+			"name": "Documentation",
+			"description": "Project documentation and architectural decisions.",
+			"parent_category_name": null
+		},
+		{
+			"name": "Architecture",
+			"description": "Application structure, contracts, and composition.",
+			"parent_category_name": null
+		},
+		{
+			"name": "Networking",
+			"description": "Signaling and peer transport tasks.",
+			"parent_category_name": null
+		},
+		{
+			"name": "Security",
+			"description": "Encryption, verification, and hardening tasks.",
+			"parent_category_name": null
+		},
+		{
+			"name": "Frontend",
+			"description": "User interface and interaction tasks.",
+			"parent_category_name": null
+		},
+		{
+			"name": "QA",
+			"description": "Validation, compatibility, and release checks.",
+			"parent_category_name": null
+		}
+	],
+	"workers": [
+		{
+			"name": "Project Owner",
+			"email": "owner@example.com",
+			"role": "Developer",
+			"skills": [
+				"JavaScript",
+				"WebRTC",
+				"WebCrypto",
+				"Architecture"
+			],
+			"hourly_rate": 0.0,
+			"weekly_capacity_hours": 20,
+			"timezone": "UTC"
+		},
+		{
+			"name": "Security Reviewer",
+			"email": "security@example.com",
+			"role": "QA Engineer",
+			"skills": [
+				"Application Security",
+				"Threat Modeling",
+				"Browser Testing"
+			],
+			"hourly_rate": 0.0,
+			"weekly_capacity_hours": 8,
+			"timezone": "UTC"
+		}
+	],
+	"tasks": [
+		{
+			"task_name": "Organize project documentation",
+			"description": "Replace exploratory notes with a clean README and focused documentation files for architecture, signaling, security, and implementation scope.",
+			"acceptance_criteria": [
+				"README explains the project clearly",
+				"docs folder contains architecture, signaling, security, and implementation plan documents",
+				"documentation reflects the selected technical direction"
+			],
+			"category_name": "Documentation",
+			"sprint_name": "Sprint 1",
+			"start_date": "2026-03-17",
+			"end_date": "2026-03-17",
+			"due_date": "2026-03-17",
+			"priority": "High",
+			"complexity": "Low",
+			"status": "Done",
+			"blocker_reason": null,
+			"progress_percentage": 100,
+			"estimated_hours": 4,
+			"actual_hours": 4,
+			"is_critical_path": true,
+			"tags": [
+				"docs",
+				"readme",
+				"planning"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [],
+			"subtasks": [
+				{
+					"name": "Rewrite README",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 1,
+					"due_date": "2026-03-17"
+				},
+				{
+					"name": "Create docs folder and topic files",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-03-17"
+				},
+				{
+					"name": "Align docs with selected architecture",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 1,
+					"due_date": "2026-03-17"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Create delivery tracker",
+			"description": "Populate the project task template with milestones, sprints, risks, and the implementation backlog required to finish the project.",
+			"acceptance_criteria": [
+				"Task file follows the provided template structure",
+				"Milestones and sprints reflect the planned delivery flow",
+				"Tasks cover MVP implementation, validation, and release preparation"
+			],
+			"category_name": "Documentation",
+			"sprint_name": "Sprint 1",
+			"start_date": "2026-03-17",
+			"end_date": "2026-03-17",
+			"due_date": "2026-03-17",
+			"priority": "High",
+			"complexity": "Low",
+			"status": "Done",
+			"blocker_reason": null,
+			"progress_percentage": 100,
+			"estimated_hours": 2,
+			"actual_hours": 2,
+			"is_critical_path": true,
+			"tags": [
+				"planning",
+				"tasks",
+				"tracking"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [],
+			"subtasks": [
+				{
+					"name": "Define milestones and sprints",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 1,
+					"due_date": "2026-03-17"
+				},
+				{
+					"name": "Define implementation backlog",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 1,
+					"due_date": "2026-03-17"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Scaffold hexagonal source structure",
+			"description": "Create the initial src layout with core, adapters, config, ui, and shared folders plus starter module files.",
+			"acceptance_criteria": [
+				"The source tree matches the documented structure",
+				"Core and adapters are separated clearly",
+				"A composition root exists for wiring implementations"
+			],
+			"category_name": "Architecture",
+			"sprint_name": "Sprint 1",
+			"start_date": "2026-03-18",
+			"end_date": "2026-03-21",
+			"due_date": "2026-03-21",
+			"priority": "High",
+			"complexity": "Low",
+			"status": "Done",
+			"blocker_reason": null,
+			"progress_percentage": 100,
+			"estimated_hours": 6,
+			"actual_hours": 6,
+			"is_critical_path": true,
+			"tags": [
+				"architecture",
+				"scaffold",
+				"src"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Organize project documentation",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Create src folder layout",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-03-18"
+				},
+				{
+					"name": "Add composition root",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-03-19"
+				},
+				{
+					"name": "Add placeholder modules for core and adapters",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-03-21"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Define core ports and domain models",
+			"description": "Create explicit interfaces for crypto, signaling, transport, identity, and storage along with session and message domain objects.",
+			"acceptance_criteria": [
+				"All required ports are defined clearly",
+				"Domain objects cover session and message lifecycle needs",
+				"Use case implementation can proceed without direct browser imports"
+			],
+			"category_name": "Architecture",
+			"sprint_name": "Sprint 1",
+			"start_date": "2026-03-20",
+			"end_date": "2026-03-25",
+			"due_date": "2026-03-25",
+			"priority": "Critical",
+			"complexity": "Medium",
+			"status": "Done",
+			"blocker_reason": null,
+			"progress_percentage": 100,
+			"estimated_hours": 10,
+			"actual_hours": 10,
+			"is_critical_path": true,
+			"tags": [
+				"core",
+				"ports",
+				"domain"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Scaffold hexagonal source structure",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Define transport port",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-03-21"
+				},
+				{
+					"name": "Define signaling and crypto ports",
+					"status": "Done",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-03-23"
+				},
+				{
+					"name": "Define session and message domain models",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-03-25"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Implement manual invite signaling",
+			"description": "Implement the no-server invite flow that encodes offer and answer payloads into shareable codes or links.",
+			"acceptance_criteria": [
+				"Host can generate an invite payload",
+				"Guest can consume the invite and return an answer payload",
+				"Offer and answer expiry and validation rules are enforced"
+			],
+			"category_name": "Networking",
+			"sprint_name": "Sprint 2",
+			"start_date": "2026-03-30",
+			"end_date": "2026-04-04",
+			"due_date": "2026-04-04",
+			"priority": "Critical",
+			"complexity": "Medium",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 12,
+			"actual_hours": 0,
+			"is_critical_path": true,
+			"tags": [
+				"signaling",
+				"invite-flow",
+				"webrtc"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Define core ports and domain models",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Create compact payload encoder and decoder",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-04-01"
+				},
+				{
+					"name": "Implement offer and answer lifecycle",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 6,
+					"due_date": "2026-04-03"
+				},
+				{
+					"name": "Add expiry and invalid-code handling",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-04-04"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Implement WebRTC transport adapter",
+			"description": "Implement peer connection and data channel lifecycle behind the transport port.",
+			"acceptance_criteria": [
+				"Offer and answer exchange drives a successful peer connection",
+				"The data channel can send and receive binary or string payloads",
+				"Connection state changes are exposed to the application layer"
+			],
+			"category_name": "Networking",
+			"sprint_name": "Sprint 2",
+			"start_date": "2026-04-01",
+			"end_date": "2026-04-08",
+			"due_date": "2026-04-08",
+			"priority": "Critical",
+			"complexity": "High",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 16,
+			"actual_hours": 0,
+			"is_critical_path": true,
+			"tags": [
+				"webrtc",
+				"transport",
+				"data-channel"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Define core ports and domain models",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Implement peer connection setup",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 6,
+					"due_date": "2026-04-03"
+				},
+				{
+					"name": "Implement data channel lifecycle",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 6,
+					"due_date": "2026-04-06"
+				},
+				{
+					"name": "Expose state and error callbacks",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-04-08"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Implement WebCrypto crypto adapter",
+			"description": "Implement the MVP encryption layer using browser-native cryptography with ephemeral keys and authenticated encryption.",
+			"acceptance_criteria": [
+				"Session key material is derived without exposing private keys",
+				"Messages are encrypted and decrypted successfully",
+				"Fingerprints can be generated for UI verification"
+			],
+			"category_name": "Security",
+			"sprint_name": "Sprint 2",
+			"start_date": "2026-04-02",
+			"end_date": "2026-04-10",
+			"due_date": "2026-04-10",
+			"priority": "Critical",
+			"complexity": "High",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 18,
+			"actual_hours": 0,
+			"is_critical_path": true,
+			"tags": [
+				"crypto",
+				"webcrypto",
+				"encryption"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Define core ports and domain models",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Implement key generation and derivation",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 6,
+					"due_date": "2026-04-05"
+				},
+				{
+					"name": "Implement AES-GCM message encryption",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 8,
+					"due_date": "2026-04-08"
+				},
+				{
+					"name": "Implement fingerprint generation and message metadata validation",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-04-10"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Build chat session use cases",
+			"description": "Implement the application flows for create, join, finalize, verify, send, and receive operations.",
+			"acceptance_criteria": [
+				"Use cases depend on ports rather than browser APIs",
+				"Handshake flow is represented cleanly in the core",
+				"Send and receive operations work with encrypted payloads"
+			],
+			"category_name": "Architecture",
+			"sprint_name": "Sprint 3",
+			"start_date": "2026-04-19",
+			"end_date": "2026-04-26",
+			"due_date": "2026-04-26",
+			"priority": "High",
+			"complexity": "Medium",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 14,
+			"actual_hours": 0,
+			"is_critical_path": true,
+			"tags": [
+				"usecases",
+				"core",
+				"session"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Implement manual invite signaling",
+					"type": "FS",
+					"lag_days": 0
+				},
+				{
+					"predecessor_task_name": "Implement WebRTC transport adapter",
+					"type": "FS",
+					"lag_days": 0
+				},
+				{
+					"predecessor_task_name": "Implement WebCrypto crypto adapter",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Implement create and join session flows",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 6,
+					"due_date": "2026-04-22"
+				},
+				{
+					"name": "Implement finalize and verification flows",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-04-24"
+				},
+				{
+					"name": "Implement send and receive flows",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-04-26"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Build MVP UI",
+			"description": "Create the browser interface for creating a session, joining a session, confirming fingerprints, and exchanging messages.",
+			"acceptance_criteria": [
+				"Users can complete the invite flow without reading code",
+				"The chat screen shows connection status and message history",
+				"The fingerprint verification step is visible and understandable"
+			],
+			"category_name": "Frontend",
+			"sprint_name": "Sprint 3",
+			"start_date": "2026-04-22",
+			"end_date": "2026-05-02",
+			"due_date": "2026-05-02",
+			"priority": "High",
+			"complexity": "Medium",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 18,
+			"actual_hours": 0,
+			"is_critical_path": true,
+			"tags": [
+				"ui",
+				"chat",
+				"invite-flow"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Build chat session use cases",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Build create and join screens",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 6,
+					"due_date": "2026-04-26"
+				},
+				{
+					"name": "Build verification and status UI",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 4,
+					"due_date": "2026-04-29"
+				},
+				{
+					"name": "Build chat screen and error states",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 8,
+					"due_date": "2026-05-02"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Validate browsers and failure paths",
+			"description": "Test the MVP in the target browser set and verify expected behavior for invalid links, expired invites, disconnects, and message failures.",
+			"acceptance_criteria": [
+				"Target browsers are listed and tested",
+				"Failure states are reproducible and handled cleanly",
+				"Known limitations are documented"
+			],
+			"category_name": "QA",
+			"sprint_name": "Sprint 4",
+			"start_date": "2026-05-10",
+			"end_date": "2026-05-18",
+			"due_date": "2026-05-18",
+			"priority": "High",
+			"complexity": "Medium",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 12,
+			"actual_hours": 0,
+			"is_critical_path": true,
+			"tags": [
+				"qa",
+				"browsers",
+				"failure-paths"
+			],
+			"assigned_workers": [
+				{
+					"name": "Security Reviewer",
+					"email": "security@example.com",
+					"role": "QA Engineer"
+				}
+			],
+			"reviewer": {
+				"name": "Project Owner",
+				"email": "owner@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Build MVP UI",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Test handshake in target browsers",
+					"status": "Not Started",
+					"assigned_to": "Security Reviewer",
+					"estimated_hours": 4,
+					"due_date": "2026-05-14"
+				},
+				{
+					"name": "Test invalid and expired invite handling",
+					"status": "Not Started",
+					"assigned_to": "Security Reviewer",
+					"estimated_hours": 4,
+					"due_date": "2026-05-16"
+				},
+				{
+					"name": "Document compatibility results",
+					"status": "Not Started",
+					"assigned_to": "Security Reviewer",
+					"estimated_hours": 4,
+					"due_date": "2026-05-18"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Run security hardening review",
+			"description": "Review crypto usage, threat model alignment, error handling, retention behavior, and wording of security guarantees before release.",
+			"acceptance_criteria": [
+				"Security review findings are documented",
+				"Critical issues are fixed or explicitly accepted",
+				"Public documentation does not overstate guarantees"
+			],
+			"category_name": "Security",
+			"sprint_name": "Sprint 4",
+			"start_date": "2026-05-16",
+			"end_date": "2026-05-23",
+			"due_date": "2026-05-23",
+			"priority": "Critical",
+			"complexity": "Medium",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 10,
+			"actual_hours": 0,
+			"is_critical_path": true,
+			"tags": [
+				"security",
+				"review",
+				"hardening"
+			],
+			"assigned_workers": [
+				{
+					"name": "Security Reviewer",
+					"email": "security@example.com",
+					"role": "QA Engineer"
+				}
+			],
+			"reviewer": {
+				"name": "Project Owner",
+				"email": "owner@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Implement WebCrypto crypto adapter",
+					"type": "FS",
+					"lag_days": 0
+				},
+				{
+					"predecessor_task_name": "Validate browsers and failure paths",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Review key lifecycle and IV handling",
+					"status": "Not Started",
+					"assigned_to": "Security Reviewer",
+					"estimated_hours": 4,
+					"due_date": "2026-05-20"
+				},
+				{
+					"name": "Review threat model against implementation",
+					"status": "Not Started",
+					"assigned_to": "Security Reviewer",
+					"estimated_hours": 3,
+					"due_date": "2026-05-21"
+				},
+				{
+					"name": "Review release wording and limitations",
+					"status": "Not Started",
+					"assigned_to": "Security Reviewer",
+					"estimated_hours": 3,
+					"due_date": "2026-05-23"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		},
+		{
+			"task_name": "Prepare release documentation",
+			"description": "Write implementation notes, supported browser guidance, setup instructions, and known limitations for the first usable release.",
+			"acceptance_criteria": [
+				"README and docs reflect the implemented system",
+				"Known limitations are documented clearly",
+				"Release notes summarize MVP capabilities and constraints"
+			],
+			"category_name": "Documentation",
+			"sprint_name": "Sprint 4",
+			"start_date": "2026-05-20",
+			"end_date": "2026-05-29",
+			"due_date": "2026-05-29",
+			"priority": "Medium",
+			"complexity": "Low",
+			"status": "Not Started",
+			"blocker_reason": null,
+			"progress_percentage": 0,
+			"estimated_hours": 6,
+			"actual_hours": 0,
+			"is_critical_path": false,
+			"tags": [
+				"docs",
+				"release",
+				"support"
+			],
+			"assigned_workers": [
+				{
+					"name": "Project Owner",
+					"email": "owner@example.com",
+					"role": "Developer"
+				}
+			],
+			"reviewer": {
+				"name": "Security Reviewer",
+				"email": "security@example.com"
+			},
+			"dependencies": [
+				{
+					"predecessor_task_name": "Run security hardening review",
+					"type": "FS",
+					"lag_days": 0
+				}
+			],
+			"subtasks": [
+				{
+					"name": "Document setup and browser support",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-05-25"
+				},
+				{
+					"name": "Document limitations and future work",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-05-27"
+				},
+				{
+					"name": "Write release summary",
+					"status": "Not Started",
+					"assigned_to": "Project Owner",
+					"estimated_hours": 2,
+					"due_date": "2026-05-29"
+				}
+			],
+			"attachments": [],
+			"links": [],
+			"comments": []
+		}
+	],
+	"required_fields": [
+		"project.name",
+		"project.start_date",
+		"project.end_date",
+		"project.status",
+		"project.timezone",
+		"project.currency",
+		"project.project_manager",
+		"tasks[].task_name",
+		"tasks[].start_date",
+		"tasks[].end_date",
+		"tasks[].due_date",
+		"tasks[].priority",
+		"tasks[].status",
+		"tasks[].progress_percentage"
+	],
+	"optional_fields": [
+		"project.description",
+		"project.budget",
+		"project.budget_spent",
+		"project.stakeholders",
+		"project.tags",
+		"project.milestones",
+		"project.sprints",
+		"project.risks",
+		"project.change_log",
+		"project.closure",
+		"tasks[].description",
+		"tasks[].acceptance_criteria",
+		"tasks[].category_name",
+		"tasks[].sprint_name",
+		"tasks[].complexity",
+		"tasks[].blocker_reason",
+		"tasks[].estimated_hours",
+		"tasks[].actual_hours",
+		"tasks[].is_critical_path",
+		"tasks[].tags",
+		"tasks[].assigned_workers",
+		"tasks[].reviewer",
+		"tasks[].dependencies",
+		"tasks[].subtasks",
+		"tasks[].attachments",
+		"tasks[].links",
+		"tasks[].comments",
+		"categories",
+		"workers"
+	]
+}
