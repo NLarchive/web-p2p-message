@@ -102,6 +102,11 @@ export class WebRtcTransportAdapter extends ITransportPort {
         cb(event.data);
       }
     };
+    // Race condition guard: ondatachannel can fire after the channel is
+    // already open in some browsers, so onopen would never fire.
+    if (dc.readyState === 'open') {
+      this._setState('connected');
+    }
   }
 
   _setupStateHandlers() {

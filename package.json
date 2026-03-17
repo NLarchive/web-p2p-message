@@ -9,10 +9,13 @@
     "smoke": "node scripts/smoke-test.mjs",
     "test": "vitest run",
     "test:ci": "node scripts/test-ci.mjs",
+    "test:e2e": "npx playwright test --project=chromium",
+    "test:e2e:headed": "npx playwright test --project=chromium --headed",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "vitest": "^3.0.0"
   }
 }

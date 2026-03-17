@@ -43,6 +43,8 @@ function showHome() {
 // ── Create ──
 
 async function handleCreate() {
+  const btn = $('#btn-create');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
   try {
     service = createSessionService();
     const result = await service.createChatSession.execute();
@@ -50,6 +52,7 @@ async function handleCreate() {
     keyPair = result.keyPair;
     showInviteCode(result.inviteCode);
   } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Chat'; }
     showError(e.message);
   }
 }
@@ -79,12 +82,18 @@ function showInviteCode(inviteCode) {
 }
 
 async function handleFinalize() {
+  const btn = $('#btn-finalize');
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
   try {
     const answerCode = $('#answer-input').value.trim();
-    if (!answerCode) return showError('Paste the answer code first');
+    if (!answerCode) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Connect'; }
+      return showError('Paste the answer code first');
+    }
     await service.finalizeHandshake.execute(session, answerCode, keyPair);
     listenForConnection();
   } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Connect'; }
     showError(e.message);
   }
 }
@@ -107,15 +116,21 @@ function showJoinForm() {
 }
 
 async function handleJoin() {
+  const btn = $('#btn-accept');
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
   try {
     const inviteCode = $('#invite-input').value.trim();
-    if (!inviteCode) return showError('Paste the invite code first');
+    if (!inviteCode) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Accept Invite'; }
+      return showError('Paste the invite code first');
+    }
     service = createSessionService();
     const result = await service.joinChatSession.execute(inviteCode);
     session = result.session;
     keyPair = result.keyPair;
     showAnswerCode(result.answerCode);
   } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Accept Invite'; }
     showError(e.message);
   }
 }
