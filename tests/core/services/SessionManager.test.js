@@ -49,13 +49,13 @@ describe('SessionManager', () => {
   it('joins a session and returns answer code', async () => {
     const { manager, transports } = createManager();
     const { sessionId: hostId, inviteCode } = await manager.createSession('Host Chat');
-    const { sessionId: guestId, answerCode } = await manager.joinSession(inviteCode, 'Guest Chat');
+    const { sessionId: guestId, answerCode } = await manager.joinSession(inviteCode);
 
     expect(guestId).toBe(hostId);
     expect(answerCode).toBeTruthy();
 
     const s = manager.getSession(guestId);
-    expect(s.title).toBe('Guest Chat');
+    expect(s.title).toBeNull(); // title syncs from host after connection
     expect(s.role).toBe('guest');
     expect(s.status).toBe(SessionStatus.AWAITING_FINALIZE);
   });

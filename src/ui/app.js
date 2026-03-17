@@ -111,7 +111,7 @@ function showSessionList() {
   for (const el of document.querySelectorAll('.btn-reconnect')) {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      showReconnectChoice(el.dataset.id);
+      handleReconnect(el.dataset.id);
     });
   }
   for (const el of document.querySelectorAll('.btn-disconnect')) {
@@ -250,10 +250,6 @@ async function handleFinalize(sessionId) {
 function showJoinForm() {
   render(`
     <h1>Join Chat</h1>
-    <div class="card">
-      <label class="field-label">Chat Title (optional)</label>
-      <input type="text" id="title-input" placeholder="e.g. Work Chat" autocomplete="off" />
-    </div>
     <p class="status mb" style="margin-top:1rem">Paste the invite code you received:</p>
     <textarea id="invite-input" rows="4" placeholder="Paste invite code here..."></textarea>
     <div class="actions">
@@ -275,8 +271,7 @@ async function handleJoin() {
       if (btn) { btn.disabled = false; btn.textContent = 'Accept Invite'; }
       return showError('Paste the invite code first');
     }
-    const title = $('#title-input').value.trim();
-    const { sessionId, answerCode } = await manager.joinSession(inviteCode, title);
+    const { sessionId, answerCode } = await manager.joinSession(inviteCode);
     showAnswerCode(sessionId, answerCode);
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Accept Invite'; }
@@ -308,26 +303,14 @@ function showAnswerCode(sessionId, answerCode) {
 
 // ── Reconnect Flow ──
 
-function showReconnectChoice(sessionId) {
+/**
+ * Automatically routes reconnection based on stored role — no manual choice.
+ */
+function handleReconnect(sessionId) {
   const s = manager.getSession(sessionId);
-  render(`
-    <h1>Reconnect</h1>
-    <p class="status mb">${escapeHtml(s?.title || 'Chat ' + sessionId.slice(0, 8))}</p>
-    <div class="card">
-      <p class="mb">Choose your role for reconnection:</p>
-      <div class="actions">
-        <button id="btn-recon-host">I'm the Host (create code)</button>
-        <button id="btn-recon-guest" class="btn-outline">I'm the Guest (paste code)</button>
-      </div>
-    </div>
-    <div class="actions">
-      <button id="btn-back" class="btn-outline">Back</button>
-    </div>
-    <p id="error" class="error"></p>
-  `);
-  $('#btn-recon-host').addEventListener('click', () => handleReconnectHost(sessionId));
-  $('#btn-recon-guest').addEventListener('click', () => showReconnectGuest(sessionId));
-  $('#btn-back').addEventListener('click', showSessionList);
+  if (!s) return;
+  if (s.role === 'host') handleReconnectHost(sessionId);
+  else showReconnectGuest(sessionId);
 }
 
 async function handleReconnectHost(sessionId) {
@@ -631,10 +614,34 @@ function onControl(sessionId, action, data) {
 // ── Boot ──
 
 async function boot() {
-  manager = createSessionManager();
+  const { manager: m, router } = createSessionManager();
+  manager = m;
   manager.on('update', onSessionUpdate);
   manager.on('message', onMessage);
   manager.on('control', onControl);
+
+  if (router) {
+    // Wait for the SharedWorker to confirm it is operational before showing the
+    // UI. The init message arrives almost immediately from a working worker.
+    // If the worker fails (RTCPeerConnection unavailable, load error, etc.) the
+    // 300 ms timeout fires, marks it dead, and we fall back to direct WebRTC.
+    await new Promise((resolve) => {
+      const timer = setTimeout(() => { router.markDead(); resolve(); }, 300);
+      router.onInit((sessions) => {
+        clearTimeout(timer);
+        // Rehydrate any connections that survived the page refresh.
+        if (router.isAlive) {
+          for (const { sessionId, state } of sessions) {
+            if (state === 'connected' || state === 'connecting') {
+              manager.rehydrateConnection(sessionId, state);
+            }
+          }
+        }
+        resolve();
+      });
+    });
+  }
+
   await manager.loadSessions();
   showSessionList();
 }

@@ -121,9 +121,9 @@ export class SessionManager {
   // ── Session Lifecycle ──
 
   async createSession(title) {
-    const transport = this._createTransport();
-    const localId = await this._identity.createIdentity();
     const sessionId = crypto.randomUUID();
+    const transport = this._createTransport(sessionId);
+    const localId = await this._identity.createIdentity();
     const session = new Session({ id: sessionId, role: 'host' });
     session.title = title || null;
     session.localIdentity = new PeerIdentity({
@@ -160,9 +160,9 @@ export class SessionManager {
     return { sessionId, inviteCode };
   }
 
-  async joinSession(inviteCode, title) {
+  async joinSession(inviteCode) {
     const offer = this._signaling.decodeOffer(inviteCode);
-    const transport = this._createTransport();
+    const transport = this._createTransport(offer.sessionId);
     const localId = await this._identity.createIdentity();
 
     const session = new Session({
@@ -170,7 +170,7 @@ export class SessionManager {
       role: 'guest',
       createdAt: offer.createdAt,
     });
-    session.title = title || null;
+    session.title = null; // Title syncs from host after connection
     session.localIdentity = new PeerIdentity({
       publicKeyJwk: localId.publicKeyJwk,
       fingerprint: localId.fingerprint,
@@ -270,7 +270,7 @@ export class SessionManager {
       }
     }
 
-    const transport = this._createTransport();
+    const transport = this._createTransport(sessionId);
     entry.transport = transport;
     const offerSdp = await transport.createOffer();
 
@@ -303,7 +303,7 @@ export class SessionManager {
       }
     }
 
-    const transport = this._createTransport();
+    const transport = this._createTransport(sessionId);
     entry.transport = transport;
     const answerSdp = await transport.acceptOffer(data.s);
     const answerCode = encodeJson({ s: answerSdp, i: sessionId, r: true });
@@ -467,6 +467,33 @@ export class SessionManager {
     this._emit('update', sessionId);
   }
 
+  /**
+   * Re-attaches a SharedWorker-held connection to this session after a page
+   * refresh. The SharedWorker already owns the RTCPeerConnection; we just
+   * need to create a new adapter that subscribes and restores state.
+   *
+   * @param {string} sessionId
+   * @param {'connected'|'connecting'} workerState
+   */
+  rehydrateConnection(sessionId, workerState) {
+    const entry = this._entries.get(sessionId);
+    if (!entry) return;
+
+    // Set session status first to avoid invalid transition errors when the
+    // subscribe response fires 'connected' on the new adapter.
+    if (workerState === 'connected') {
+      entry.session.status = SessionStatus.CONNECTED;
+    } else if (workerState === 'connecting') {
+      entry.session.status = SessionStatus.CONNECTING;
+    }
+
+    const transport = this._createTransport(sessionId, { isRehydration: true });
+    entry.transport = transport;
+    this._setupTransportListeners(sessionId);
+    this._persistSession(sessionId);
+    this._emit('update', sessionId);
+  }
+
   // ── Queries ──
 
   getSessions() {
@@ -491,8 +518,20 @@ export class SessionManager {
     const entry = this._entries.get(sessionId);
     if (!entry?.transport) return;
 
-    entry.transport.onStateChange((state) => {
+    // Capture the transport reference so stale callbacks from replaced
+    // transports (e.g. after reconnect) are silently ignored.
+    const transport = entry.transport;
+
+    transport.onStateChange((state) => {
+      if (!entry.transport || entry.transport !== transport) return;
+
       if (state === 'connected') {
+        // Detect whether this is a brand-new connection (not a rehydration).
+        const wasConnecting =
+          entry.session.status === SessionStatus.CONNECTING ||
+          entry.session.status === SessionStatus.AWAITING_ANSWER ||
+          entry.session.status === SessionStatus.AWAITING_FINALIZE;
+
         if (
           entry.session.status === SessionStatus.AWAITING_ANSWER ||
           entry.session.status === SessionStatus.AWAITING_FINALIZE
@@ -506,8 +545,8 @@ export class SessionManager {
         this._persistSession(sessionId);
         this._emit('update', sessionId);
 
-        // Send title on connect
-        if (entry.session.title) {
+        // Only send title on a real new connection, not on rehydration.
+        if (wasConnecting && entry.session.title) {
           this.sendTitle(sessionId, entry.session.title);
         }
       }
@@ -523,7 +562,8 @@ export class SessionManager {
       }
     });
 
-    entry.transport.onMessage(async (encryptedData) => {
+    transport.onMessage(async (encryptedData) => {
+      if (!entry.transport || entry.transport !== transport) return;
       try {
         const plaintext = await this._crypto.decrypt(
           encryptedData,
@@ -561,10 +601,11 @@ export class SessionManager {
     if (!entry) return;
 
     if (action === ControlAction.TITLE && data?.title) {
-      // Store remote title as a display hint
-      this._emit('control', sessionId, ControlAction.TITLE, {
-        title: data.title,
-      });
+      // Persist the host's title on the guest side
+      entry.session.title = data.title;
+      this._persistSession(sessionId);
+      this._emit('control', sessionId, ControlAction.TITLE, { title: data.title });
+      this._emit('update', sessionId);
     }
 
     if (action === ControlAction.DELETE_REQUEST) {
