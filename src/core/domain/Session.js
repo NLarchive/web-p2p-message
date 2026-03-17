@@ -1,4 +1,5 @@
 import { SESSION_EXPIRY_MS } from '../../shared/validation/constraints.js';
+import { PeerIdentity } from './PeerIdentity.js';
 
 export const SessionStatus = Object.freeze({
   CREATED: 'created',
@@ -37,7 +38,10 @@ const VALID_TRANSITIONS = {
     SessionStatus.DISCONNECTED,
     SessionStatus.ERROR,
   ],
-  [SessionStatus.DISCONNECTED]: [],
+  [SessionStatus.DISCONNECTED]: [
+    SessionStatus.CONNECTING,
+    SessionStatus.ERROR,
+  ],
   [SessionStatus.EXPIRED]: [],
   [SessionStatus.ERROR]: [],
 };
@@ -49,6 +53,7 @@ export class Session {
     this.status = SessionStatus.CREATED;
     this.createdAt = createdAt;
     this.expiryMs = expiryMs;
+    this.title = null;
     this.localIdentity = null;
     this.remoteIdentity = null;
     this.sharedKey = null;
@@ -66,8 +71,10 @@ export class Session {
   }
 
   transition(newStatus) {
+    // Skip expiry check for established sessions (DISCONNECTED can reconnect)
     if (
       this.isExpired &&
+      this.status !== SessionStatus.DISCONNECTED &&
       newStatus !== SessionStatus.EXPIRED &&
       newStatus !== SessionStatus.ERROR
     ) {
@@ -104,8 +111,50 @@ export class Session {
       role: this.role,
       status: this.status,
       createdAt: this.createdAt,
+      title: this.title,
       localFingerprint: this.localIdentity?.fingerprint ?? null,
       remoteFingerprint: this.remoteIdentity?.fingerprint ?? null,
     };
+  }
+
+  toSerializable(privateKeyJwk) {
+    return {
+      id: this.id,
+      role: this.role,
+      status: this.status,
+      title: this.title,
+      createdAt: this.createdAt,
+      expiryMs: this.expiryMs,
+      messageCounter: this.messageCounter,
+      lastReceivedCounter: this._lastReceivedCounter,
+      localIdentity: this.localIdentity?.toJSON() ?? null,
+      remoteIdentity: this.remoteIdentity?.toJSON() ?? null,
+      privateKeyJwk: privateKeyJwk ?? null,
+    };
+  }
+
+  static fromSerializable(data) {
+    const session = new Session({
+      id: data.id,
+      role: data.role,
+      createdAt: data.createdAt,
+      expiryMs: data.expiryMs,
+    });
+    // Restored sessions that were connected come back as disconnected
+    const restoredStatus =
+      data.status === SessionStatus.CONNECTED
+        ? SessionStatus.DISCONNECTED
+        : data.status;
+    session.status = restoredStatus;
+    session.title = data.title ?? null;
+    session.messageCounter = data.messageCounter ?? 0;
+    session._lastReceivedCounter = data.lastReceivedCounter ?? 0;
+    if (data.localIdentity) {
+      session.localIdentity = PeerIdentity.fromJSON(data.localIdentity);
+    }
+    if (data.remoteIdentity) {
+      session.remoteIdentity = PeerIdentity.fromJSON(data.remoteIdentity);
+    }
+    return { session, privateKeyJwk: data.privateKeyJwk ?? null };
   }
 }

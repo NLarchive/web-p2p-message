@@ -130,3 +130,111 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
 .actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
 .error { color: var(--danger); font-size: 0.85rem; margin-top: 0.5rem; }
 .mb { margin-bottom: 1rem; }
+
+/* ── Session List ── */
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.session-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+}
+.session-card-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+.session-indicator {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.session-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.session-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-status {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.session-preview {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  justify-content: flex-end;
+}
+.btn-small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-danger:hover { opacity: 0.85; }
+.btn-reconnect {
+  background: var(--accent);
+  color: #fff;
+}
+.field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+/* ── Chat Header ── */
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.chat-header-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.chat-header-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-header-status {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}

@@ -2,6 +2,7 @@ import { WebCryptoEcdhAesGcm } from '../adapters/crypto/WebCryptoEcdhAesGcm.js';
 import { EphemeralIdentityAdapter } from '../adapters/identity/EphemeralIdentityAdapter.js';
 import { ManualCodeSignalingAdapter } from '../adapters/signaling/ManualCodeSignalingAdapter.js';
 import { MemoryStorageAdapter } from '../adapters/storage/MemoryStorageAdapter.js';
+import { IndexedDbStorageAdapter } from '../adapters/storage/IndexedDbStorageAdapter.js';
 import { WebRtcTransportAdapter } from '../adapters/transport/WebRtcTransportAdapter.js';
 import { CreateChatSession } from '../core/usecases/CreateChatSession.js';
 import { JoinChatSession } from '../core/usecases/JoinChatSession.js';
@@ -9,6 +10,7 @@ import { FinalizeHandshake } from '../core/usecases/FinalizeHandshake.js';
 import { SendMessage } from '../core/usecases/SendMessage.js';
 import { ReceiveMessage } from '../core/usecases/ReceiveMessage.js';
 import { VerifyFingerprint } from '../core/usecases/VerifyFingerprint.js';
+import { SessionManager } from '../core/services/SessionManager.js';
 
 /**
  * Composition root — wires adapters to use cases.
@@ -44,4 +46,25 @@ export function createSessionService() {
     transport,
     storage,
   };
+}
+
+/**
+ * Creates a SessionManager with IndexedDB persistence and WebRTC transport.
+ */
+export function createSessionManager() {
+  const cryptoAdapter = new WebCryptoEcdhAesGcm();
+  const storage =
+    typeof indexedDB !== 'undefined'
+      ? new IndexedDbStorageAdapter()
+      : new MemoryStorageAdapter();
+  const signaling = new ManualCodeSignalingAdapter();
+  const identity = new EphemeralIdentityAdapter({ crypto: cryptoAdapter });
+
+  return new SessionManager({
+    crypto: cryptoAdapter,
+    signaling,
+    identity,
+    storage,
+    createTransport: () => new WebRtcTransportAdapter(),
+  });
 }

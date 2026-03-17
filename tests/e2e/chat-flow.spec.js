@@ -22,6 +22,10 @@ test.describe('P2P chat — two peers', () => {
       await expect(hostPage.locator('h1')).toHaveText('P2P Message');
       await hostPage.click('#btn-create');
 
+      // Fill optional title and create
+      await hostPage.fill('#title-input', 'Test Chat');
+      await hostPage.click('#btn-start-create');
+
       // Wait for invite-code textarea to contain a value (ICE gathering).
       const inviteCodeLocator = hostPage.locator('#invite-code');
       await expect(inviteCodeLocator).not.toHaveValue('', {
@@ -50,10 +54,10 @@ test.describe('P2P chat — two peers', () => {
       await hostPage.click('#btn-finalize');
 
       // ── 4. Both peers reach the connected chat screen ─────────────────────
-      await expect(hostPage.locator('.status.connected')).toBeVisible({
+      await expect(hostPage.locator('.chat-header-status')).toContainText('Connected', {
         timeout: CONNECT_TIMEOUT,
       });
-      await expect(guestPage.locator('.status.connected')).toBeVisible({
+      await expect(guestPage.locator('.chat-header-status')).toContainText('Connected', {
         timeout: CONNECT_TIMEOUT,
       });
 
