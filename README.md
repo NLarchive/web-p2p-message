@@ -106,10 +106,16 @@ The preview server serves the built `dist/` directory so the same artifact can b
 
 This repository includes a GitHub Actions workflow that builds the static app and deploys `dist/` to GitHub Pages on pushes to `main`.
 
-Once the repository is published, the site URL will be:
+Repository:
 
 ```text
-https://<github-username>.github.io/<repository-name>/
+https://github.com/NLarchive/web-p2p-message
+```
+
+Live site:
+
+```text
+https://nlarchive.github.io/web-p2p-message/
 ```
 
 ## Testing

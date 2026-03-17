@@ -3,7 +3,7 @@ import { SessionStatus } from '../core/domain/Session.js';
 
 const $ = (sel) => document.querySelector(sel);
 const app = document.getElementById('app');
-const SOURCE_URL = 'https://github.com/Narchive/web-p2p-message';
+const SOURCE_URL = 'https://github.com/NLarchive/web-p2p-message';
 
 let service;
 let session;
