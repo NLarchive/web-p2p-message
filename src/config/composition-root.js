@@ -1,3 +1,4 @@
+import { HybridPqCryptoAdapter } from '../adapters/crypto/HybridPqCryptoAdapter.js';
 import { WebCryptoEcdhAesGcm } from '../adapters/crypto/WebCryptoEcdhAesGcm.js';
 import { EphemeralIdentityAdapter } from '../adapters/identity/EphemeralIdentityAdapter.js';
 import { ManualCodeSignalingAdapter } from '../adapters/signaling/ManualCodeSignalingAdapter.js';
@@ -129,7 +130,7 @@ export function createSessionService() {
  * @returns {{ manager: SessionManager, router: WorkerRouter|null }}
  */
 export function createSessionManager() {
-  const cryptoAdapter = new WebCryptoEcdhAesGcm();
+  const cryptoAdapter = new HybridPqCryptoAdapter();
   const storage =
     typeof indexedDB !== 'undefined'
       ? new IndexedDbStorageAdapter()
@@ -142,7 +143,11 @@ export function createSessionManager() {
   try {
     if (typeof SharedWorker !== 'undefined') {
       const workerUrl = new URL('../workers/rtc.worker.js', import.meta.url);
-      const sw = new SharedWorker(workerUrl, { type: 'module' });
+      const sw = new SharedWorker(workerUrl, {
+        type: 'module',
+        name: 'p2p-rtc-core',
+        extendedLifetime: true,
+      });
       workerRouter = new WorkerRouter(sw.port);
       // If the worker fails to load, mark it dead so we fall back to direct WebRTC.
       sw.onerror = () => workerRouter?.markDead();

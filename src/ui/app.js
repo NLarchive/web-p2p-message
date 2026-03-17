@@ -64,6 +64,7 @@ function showSessionList() {
       const indicator = statusIndicator(s.status);
       const label = statusLabel(s.status);
       const title = escapeHtml(s.title || `Chat ${s.id.slice(0, 8)}`);
+      const role = s.role === 'host' ? 'Host' : 'Guest';
       const lastMsg = getLastMessagePreview(s.id);
       return `
         <div class="session-card" data-id="${s.id}">
@@ -71,7 +72,7 @@ function showSessionList() {
             <span class="session-indicator">${indicator}</span>
             <div class="session-info">
               <span class="session-title">${title}</span>
-              <span class="session-status">${label}</span>
+              <span class="session-status">${label} · ${role}</span>
               ${lastMsg ? `<span class="session-preview">${escapeHtml(lastMsg)}</span>` : ''}
             </div>
           </div>
@@ -206,11 +207,20 @@ function showInviteCode(sessionId, inviteCode) {
 function showHostWaiting(sessionId) {
   const entry = manager.getEntry(sessionId);
   if (!entry) return showSessionList();
-  // Re-show the invite/answer screen for sessions still awaiting
-  // We don't have the invite code stored, so show a waiting screen
+  const inviteCode = entry.pendingSignal?.type === 'invite'
+    ? entry.pendingSignal.code
+    : '';
   render(`
     <h1>${escapeHtml(entry.session.title || 'Chat')}</h1>
     <p class="status mb">🟠 Awaiting answer code from peer</p>
+    ${inviteCode ? `
+    <div class="card">
+      <p class="mb">Stored invite code:</p>
+      <textarea id="invite-code" rows="4" readonly>${inviteCode}</textarea>
+      <div class="actions">
+        <button id="btn-copy">Copy</button>
+      </div>
+    </div>` : ''}
     <div class="card">
       <p class="mb">Paste the answer code:</p>
       <textarea id="answer-input" rows="4" placeholder="Paste answer code here..."></textarea>
@@ -223,6 +233,12 @@ function showHostWaiting(sessionId) {
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
   `);
+  if ($('#btn-copy')) {
+    $('#btn-copy').addEventListener('click', () => {
+      navigator.clipboard.writeText(inviteCode);
+      $('#btn-copy').textContent = 'Copied!';
+    });
+  }
   $('#btn-finalize').addEventListener('click', () => handleFinalize(sessionId));
   $('#btn-back').addEventListener('click', showSessionList);
 }
@@ -282,6 +298,7 @@ async function handleJoin() {
 function showAnswerCode(sessionId, answerCode) {
   render(`
     <h1>Send Answer</h1>
+    <p class="status mb">Role: Guest</p>
     <p class="status mb">Send this answer code back to the host:</p>
     <textarea id="answer-code" rows="4" readonly>${answerCode}</textarea>
     <div class="actions">
@@ -328,6 +345,7 @@ async function handleReconnectHost(sessionId) {
 function showReconnectInvite(sessionId, reconnectCode) {
   render(`
     <h1>Reconnect — Host</h1>
+    <p class="status mb">Role: Host</p>
     <p class="status mb">Send this reconnect code to your peer:</p>
     <textarea id="recon-code" rows="4" readonly>${reconnectCode}</textarea>
     <div class="actions">
@@ -371,6 +389,7 @@ function showReconnectInvite(sessionId, reconnectCode) {
 function showReconnectGuest(sessionId) {
   render(`
     <h1>Reconnect — Guest</h1>
+    <p class="status mb">Role: Guest</p>
     <p class="status mb">Paste the reconnect code from your peer:</p>
     <textarea id="recon-input" rows="4" placeholder="Paste reconnect code here..."></textarea>
     <div class="actions">
@@ -401,6 +420,7 @@ function showReconnectGuest(sessionId) {
 function showReconnectAnswer(sessionId, answerCode) {
   render(`
     <h1>Reconnect — Guest</h1>
+    <p class="status mb">Role: Guest</p>
     <p class="status mb">Send this answer code back to the host:</p>
     <textarea id="recon-answer-code" rows="4" readonly>${answerCode}</textarea>
     <div class="actions">
@@ -431,10 +451,18 @@ function showSessionDetail(sessionId) {
     <h1>${escapeHtml(s.title || 'Chat ' + s.id.slice(0, 8))}</h1>
     <div class="card">
       <p class="status">${statusIndicator(s.status)} ${statusLabel(s.status)}</p>
-      <p style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-muted)">Role: ${s.role}</p>
+      <p style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-muted)">Role: ${s.role === 'host' ? 'Host' : 'Guest'}</p>
       ${s.localIdentity ? `<p style="font-size:0.8rem;color:var(--text-muted)">Your fingerprint: <span class="fingerprint">${s.localIdentity.fingerprint}</span></p>` : ''}
       ${s.remoteIdentity ? `<p style="font-size:0.8rem;color:var(--text-muted)">Peer fingerprint: <span class="fingerprint">${s.remoteIdentity.fingerprint}</span></p>` : ''}
     </div>
+    ${entry?.pendingSignal?.code ? `
+    <div class="card">
+      <label class="field-label">Stored Session Code</label>
+      <textarea id="stored-code" rows="4" readonly>${entry.pendingSignal.code}</textarea>
+      <div class="actions">
+        <button id="btn-copy-stored-code">Copy Code</button>
+      </div>
+    </div>` : ''}
     <div class="card">
       <label class="field-label">Chat Title</label>
       <div class="send-bar">
@@ -454,8 +482,14 @@ function showSessionDetail(sessionId) {
     const title = $('#edit-title').value.trim();
     await manager.sendTitle(sessionId, title);
   });
+  if ($('#btn-copy-stored-code')) {
+    $('#btn-copy-stored-code').addEventListener('click', () => {
+      navigator.clipboard.writeText(entry.pendingSignal.code);
+      $('#btn-copy-stored-code').textContent = 'Copied!';
+    });
+  }
   if ($('#btn-recon')) {
-    $('#btn-recon').addEventListener('click', () => showReconnectChoice(sessionId));
+    $('#btn-recon').addEventListener('click', () => handleReconnect(sessionId));
   }
   if ($('#btn-open-chat')) {
     $('#btn-open-chat').addEventListener('click', () => showChat(sessionId));
@@ -491,7 +525,7 @@ function showChat(sessionId) {
       <button id="btn-chat-back" class="btn-small btn-outline">←</button>
       <div class="chat-header-info">
         <span class="chat-header-title">${escapeHtml(s.title || 'Chat ' + s.id.slice(0, 8))}</span>
-        <span class="chat-header-status">${statusIndicator(s.status)} ${statusLabel(s.status)}</span>
+        <span class="chat-header-status">${statusIndicator(s.status)} ${statusLabel(s.status)} · ${s.role === 'host' ? 'Host' : 'Guest'}</span>
       </div>
       <button id="btn-chat-detail" class="btn-small btn-outline">ⓘ</button>
     </div>
@@ -572,7 +606,7 @@ function onSessionUpdate(sessionId) {
   if (activeSessionId === sessionId) {
     const headerStatus = document.querySelector('.chat-header-status');
     if (headerStatus && s) {
-      headerStatus.textContent = `${statusIndicator(s.status)} ${statusLabel(s.status)}`;
+      headerStatus.textContent = `${statusIndicator(s.status)} ${statusLabel(s.status)} · ${s.role === 'host' ? 'Host' : 'Guest'}`;
     }
     // Enable/disable send
     const input = $('#msg-input');

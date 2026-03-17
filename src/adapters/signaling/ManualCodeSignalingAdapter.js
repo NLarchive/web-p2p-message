@@ -7,8 +7,10 @@ import {
 import { isExpired } from '../../shared/validation/constraints.js';
 
 export class ManualCodeSignalingAdapter extends ISignalingPort {
-  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt }) {
-    return encodeJson({ s: sdp, k: publicKeyJwk, i: sessionId, t: createdAt });
+  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, cipherText }) {
+    const payload = { s: sdp, k: publicKeyJwk, i: sessionId, t: createdAt };
+    if (cipherText) payload.c = cipherText;
+    return encodeJson(payload);
   }
 
   decodeOffer(encoded) {
@@ -29,11 +31,14 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
       publicKeyJwk: data.k,
       sessionId: data.i,
       createdAt: data.t,
+      cipherText: data.c ?? null,
     };
   }
 
-  encodeAnswer({ sdp, publicKeyJwk, sessionId }) {
-    return encodeJson({ s: sdp, k: publicKeyJwk, i: sessionId });
+  encodeAnswer({ sdp, publicKeyJwk, sessionId, cipherText }) {
+    const payload = { s: sdp, k: publicKeyJwk, i: sessionId };
+    if (cipherText) payload.c = cipherText;
+    return encodeJson(payload);
   }
 
   decodeAnswer(encoded) {
@@ -46,6 +51,11 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
     if (!data.s || !data.k || !data.i) {
       throw new InvalidInviteError('Answer is missing required fields');
     }
-    return { sdp: data.s, publicKeyJwk: data.k, sessionId: data.i };
+    return {
+      sdp: data.s,
+      publicKeyJwk: data.k,
+      sessionId: data.i,
+      cipherText: data.c ?? null,
+    };
   }
 }

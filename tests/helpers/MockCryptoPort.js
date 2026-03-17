@@ -3,6 +3,10 @@ import { ICryptoPort } from '../../src/core/ports/ICryptoPort.js';
 let counter = 0;
 
 export class MockCryptoPort extends ICryptoPort {
+  get handshakeMode() {
+    return 'dh';
+  }
+
   async generateKeyPair() {
     const id = ++counter;
     return {
@@ -24,7 +28,23 @@ export class MockCryptoPort extends ICryptoPort {
     return { _mock: true, imported: true, jwk };
   }
 
+  async exportPrivateKey(privateKey) {
+    return { _mock: true, privateKeyId: privateKey.id };
+  }
+
+  async importPrivateKey(serialized) {
+    return { _mock: true, id: serialized.privateKeyId, type: 'private' };
+  }
+
   async deriveSharedKey(privateKey, remotePublicKey) {
+    return { _mock: true, type: 'shared' };
+  }
+
+  async exportSharedKey() {
+    return 'mock-shared-key';
+  }
+
+  async importSharedKey() {
     return { _mock: true, type: 'shared' };
   }
 

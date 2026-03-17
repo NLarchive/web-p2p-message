@@ -8,6 +8,10 @@ const IV_BYTES = 12;
 const FINGERPRINT_BYTES = 8;
 
 export class WebCryptoEcdhAesGcm extends ICryptoPort {
+  get handshakeMode() {
+    return 'dh';
+  }
+
   async generateKeyPair() {
     try {
       return await crypto.subtle.generateKey(ECDH_PARAMS, true, ['deriveKey']);
@@ -32,17 +36,61 @@ export class WebCryptoEcdhAesGcm extends ICryptoPort {
     }
   }
 
+  async exportPrivateKey(privateKey) {
+    try {
+      return await crypto.subtle.exportKey('jwk', privateKey);
+    } catch (e) {
+      throw new CryptoError(`Private key export failed: ${e.message}`);
+    }
+  }
+
+  async importPrivateKey(jwk) {
+    try {
+      return await crypto.subtle.importKey(
+        'jwk',
+        jwk,
+        ECDH_PARAMS,
+        true,
+        ['deriveKey'],
+      );
+    } catch (e) {
+      throw new CryptoError(`Private key import failed: ${e.message}`);
+    }
+  }
+
   async deriveSharedKey(privateKey, remotePublicKey) {
     try {
       return await crypto.subtle.deriveKey(
         { name: 'ECDH', public: remotePublicKey },
         privateKey,
         AES_PARAMS,
-        false,
+        true,
         ['encrypt', 'decrypt'],
       );
     } catch (e) {
       throw new CryptoError(`Key derivation failed: ${e.message}`);
+    }
+  }
+
+  async exportSharedKey(sharedKey) {
+    try {
+      return encode(await crypto.subtle.exportKey('raw', sharedKey));
+    } catch (e) {
+      throw new CryptoError(`Shared key export failed: ${e.message}`);
+    }
+  }
+
+  async importSharedKey(serialized) {
+    try {
+      return await crypto.subtle.importKey(
+        'raw',
+        decode(serialized),
+        AES_PARAMS,
+        true,
+        ['encrypt', 'decrypt'],
+      );
+    } catch (e) {
+      throw new CryptoError(`Shared key import failed: ${e.message}`);
     }
   }
 

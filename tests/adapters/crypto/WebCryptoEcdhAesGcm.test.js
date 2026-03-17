@@ -86,6 +86,28 @@ describe('WebCryptoEcdhAesGcm', () => {
     await expect(adapter.decrypt(ct, sharedAC)).rejects.toThrow();
   });
 
+  it('exports and restores private and shared keys', async () => {
+    const kpA = await adapter.generateKeyPair();
+    const kpB = await adapter.generateKeyPair();
+
+    const exportedPrivate = await adapter.exportPrivateKey(kpA.privateKey);
+    const restoredPrivate = await adapter.importPrivateKey(exportedPrivate);
+    const restoredPublic = await adapter.importPublicKey(
+      await adapter.exportPublicKey(kpB.publicKey),
+    );
+
+    const shared = await adapter.deriveSharedKey(restoredPrivate, restoredPublic);
+    const exportedShared = await adapter.exportSharedKey(shared);
+    const restoredShared = await adapter.importSharedKey(exportedShared);
+
+    const ciphertext = await adapter.encrypt('persisted secret', restoredShared);
+    const originalPeerShared = await adapter.deriveSharedKey(
+      kpB.privateKey,
+      await adapter.importPublicKey(await adapter.exportPublicKey(kpA.publicKey)),
+    );
+    expect(await adapter.decrypt(ciphertext, originalPeerShared)).toBe('persisted secret');
+  });
+
   it('generates a fingerprint', async () => {
     const kp = await adapter.generateKeyPair();
     const jwk = await adapter.exportPublicKey(kp.publicKey);

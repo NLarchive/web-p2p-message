@@ -26,5 +26,8 @@ await rm(distDir, { recursive: true, force: true });
 await mkdir(distDir, { recursive: true });
 await copyRecursive(path.join(rootDir, 'index.html'), path.join(distDir, 'index.html'));
 await copyRecursive(path.join(rootDir, 'src'), path.join(distDir, 'src'));
+await copyRecursive(path.join(rootDir, 'node_modules', '@noble', 'post-quantum'), path.join(distDir, 'vendor', '@noble', 'post-quantum'));
+await copyRecursive(path.join(rootDir, 'node_modules', '@noble', 'curves'), path.join(distDir, 'vendor', '@noble', 'curves'));
+await copyRecursive(path.join(rootDir, 'node_modules', '@noble', 'hashes'), path.join(distDir, 'vendor', '@noble', 'hashes'));
 
 console.log('Built static site into dist/');

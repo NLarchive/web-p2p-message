@@ -21,7 +21,7 @@ export class SessionManager {
     this._storage = storage;
     this._createTransport = createTransport;
 
-    // Map<sessionId, { session, transport, keyPair, privateKeyJwk, messages }>
+    // Map<sessionId, { session, transport, keyPair, privateKeyJwk, messages, pendingSignal }>
     this._entries = new Map();
     this._listeners = {};
   }
@@ -50,25 +50,32 @@ export class SessionManager {
       if (!data) continue;
       const { session, privateKeyJwk } = Session.fromSerializable(data);
 
-      // Re-derive sharedKey if we have the crypto material
-      if (privateKeyJwk && session.remoteIdentity) {
+      if (data.sharedKey && this._crypto.importSharedKey) {
         try {
-          const privateKey = await this._crypto.importPrivateKey
-            ? await this._crypto.importPrivateKey(privateKeyJwk)
-            : await crypto.subtle.importKey(
-                'jwk',
-                privateKeyJwk,
-                { name: 'ECDH', namedCurve: 'P-256' },
-                true,
-                ['deriveKey'],
-              );
-          const remotePublicKey = await this._crypto.importPublicKey(
-            session.remoteIdentity.publicKeyJwk,
-          );
-          session.sharedKey = await this._crypto.deriveSharedKey(
-            privateKey,
-            remotePublicKey,
-          );
+          session.sharedKey = await this._crypto.importSharedKey(data.sharedKey);
+        } catch {
+          // Can't restore shared key; reconnect flow will regenerate it.
+        }
+      }
+
+      // Re-derive sharedKey if we have the crypto material
+      if (
+        !session.sharedKey &&
+        this._crypto.handshakeMode === 'dh' &&
+        privateKeyJwk &&
+        session.remoteIdentity
+      ) {
+        try {
+          if (this._crypto.importPrivateKey && this._crypto.deriveSharedKey) {
+            const privateKey = await this._crypto.importPrivateKey(privateKeyJwk);
+            const remotePublicKey = await this._crypto.importPublicKey(
+              session.remoteIdentity.publicKeyJwk,
+            );
+            session.sharedKey = await this._crypto.deriveSharedKey(
+              privateKey,
+              remotePublicKey,
+            );
+          }
         } catch {
           // Can't restore crypto — session remains without sharedKey
         }
@@ -81,6 +88,7 @@ export class SessionManager {
         keyPair: null,
         privateKeyJwk,
         messages,
+        pendingSignal: data.pendingSignal ?? null,
       });
     }
   }
@@ -92,17 +100,30 @@ export class SessionManager {
     let privateKeyJwk = entry.privateKeyJwk;
     if (!privateKeyJwk && entry.keyPair) {
       try {
-        privateKeyJwk = await this._crypto.exportPublicKey
-          ? await crypto.subtle.exportKey('jwk', entry.keyPair.privateKey)
-          : null;
+        privateKeyJwk = this._crypto.exportPrivateKey
+          ? await this._crypto.exportPrivateKey(entry.keyPair.privateKey)
+          : await crypto.subtle.exportKey('jwk', entry.keyPair.privateKey);
       } catch {
         // Non-exportable key
       }
     }
 
+    let sharedKey = null;
+    if (entry.session.sharedKey && this._crypto.exportSharedKey) {
+      try {
+        sharedKey = await this._crypto.exportSharedKey(entry.session.sharedKey);
+      } catch {
+        // Non-exportable session key
+      }
+    }
+
     await this._storage.save(
       sessionStorageKey(id),
-      entry.session.toSerializable(privateKeyJwk),
+      {
+        ...entry.session.toSerializable(privateKeyJwk),
+        sharedKey,
+        pendingSignal: entry.pendingSignal ?? null,
+      },
     );
     await this._storage.save(messagesStorageKey(id), entry.messages);
 
@@ -141,10 +162,9 @@ export class SessionManager {
 
     session.transition(SessionStatus.AWAITING_ANSWER);
 
-    const privateKeyJwk = await crypto.subtle.exportKey(
-      'jwk',
-      localId.keyPair.privateKey,
-    );
+    const privateKeyJwk = this._crypto.exportPrivateKey
+      ? await this._crypto.exportPrivateKey(localId.keyPair.privateKey)
+      : await crypto.subtle.exportKey('jwk', localId.keyPair.privateKey);
 
     const entry = {
       session,
@@ -152,6 +172,10 @@ export class SessionManager {
       keyPair: localId.keyPair,
       privateKeyJwk,
       messages: [],
+      pendingSignal: {
+        type: 'invite',
+        code: inviteCode,
+      },
     };
     this._entries.set(sessionId, entry);
     await this._persistSession(sessionId);
@@ -187,10 +211,18 @@ export class SessionManager {
       fingerprint: remoteFingerprint,
     });
 
-    const sharedKey = await this._crypto.deriveSharedKey(
-      localId.keyPair.privateKey,
-      remotePublicKey,
-    );
+    let sharedKey;
+    let cipherText = null;
+    if (this._crypto.handshakeMode === 'kem') {
+      const encapsulated = await this._crypto.encapsulateSharedKey(remotePublicKey);
+      sharedKey = encapsulated.sharedKey;
+      cipherText = encapsulated.cipherText;
+    } else {
+      sharedKey = await this._crypto.deriveSharedKey(
+        localId.keyPair.privateKey,
+        remotePublicKey,
+      );
+    }
     session.sharedKey = sharedKey;
 
     const answerSdp = await transport.acceptOffer(offer.sdp);
@@ -198,14 +230,14 @@ export class SessionManager {
       sdp: answerSdp,
       publicKeyJwk: localId.publicKeyJwk,
       sessionId: offer.sessionId,
+      cipherText,
     });
 
     session.transition(SessionStatus.AWAITING_FINALIZE);
 
-    const privateKeyJwk = await crypto.subtle.exportKey(
-      'jwk',
-      localId.keyPair.privateKey,
-    );
+    const privateKeyJwk = this._crypto.exportPrivateKey
+      ? await this._crypto.exportPrivateKey(localId.keyPair.privateKey)
+      : await crypto.subtle.exportKey('jwk', localId.keyPair.privateKey);
 
     const entry = {
       session,
@@ -213,6 +245,10 @@ export class SessionManager {
       keyPair: localId.keyPair,
       privateKeyJwk,
       messages: [],
+      pendingSignal: {
+        type: 'answer',
+        code: answerCode,
+      },
     };
     this._entries.set(offer.sessionId, entry);
     this._setupTransportListeners(offer.sessionId);
@@ -242,13 +278,19 @@ export class SessionManager {
       fingerprint: remoteFingerprint,
     });
 
-    const sharedKey = await this._crypto.deriveSharedKey(
-      entry.keyPair.privateKey,
-      remotePublicKey,
-    );
+    const sharedKey = this._crypto.handshakeMode === 'kem' && answer.cipherText
+      ? await this._crypto.decapsulateSharedKey(
+          entry.keyPair.privateKey,
+          answer.cipherText,
+        )
+      : await this._crypto.deriveSharedKey(
+          entry.keyPair.privateKey,
+          remotePublicKey,
+        );
     entry.session.sharedKey = sharedKey;
 
     await entry.transport.acceptAnswer(answer.sdp);
+    entry.pendingSignal = null;
     entry.session.transition(SessionStatus.CONNECTING);
     this._setupTransportListeners(sessionId);
     await this._persistSession(sessionId);
@@ -280,6 +322,10 @@ export class SessionManager {
       r: true,
     });
 
+    entry.pendingSignal = {
+      type: 'reconnect-invite',
+      code: reconnectCode,
+    };
     entry.session.transition(SessionStatus.CONNECTING);
     await this._persistSession(sessionId);
     this._emit('update', sessionId);
@@ -306,8 +352,23 @@ export class SessionManager {
     const transport = this._createTransport(sessionId);
     entry.transport = transport;
     const answerSdp = await transport.acceptOffer(data.s);
-    const answerCode = encodeJson({ s: answerSdp, i: sessionId, r: true });
 
+    let cipherText = null;
+    if (this._crypto.handshakeMode === 'kem' && entry.session.remoteIdentity) {
+      const remotePublicKey = await this._crypto.importPublicKey(
+        entry.session.remoteIdentity.publicKeyJwk,
+      );
+      const encapsulated = await this._crypto.encapsulateSharedKey(remotePublicKey);
+      entry.session.sharedKey = encapsulated.sharedKey;
+      cipherText = encapsulated.cipherText;
+    }
+
+    const answerCode = encodeJson({ s: answerSdp, i: sessionId, r: true, c: cipherText });
+
+    entry.pendingSignal = {
+      type: 'reconnect-answer',
+      code: answerCode,
+    };
     entry.session.transition(SessionStatus.CONNECTING);
     this._setupTransportListeners(sessionId);
     await this._persistSession(sessionId);
@@ -323,7 +384,15 @@ export class SessionManager {
     const data = decodeJson(answerCode);
     if (data.i !== sessionId) throw new Error('Answer session mismatch');
 
+    if (this._crypto.handshakeMode === 'kem' && data.c) {
+      entry.session.sharedKey = await this._crypto.decapsulateSharedKey(
+        entry.keyPair.privateKey,
+        data.c,
+      );
+    }
+
     await entry.transport.acceptAnswer(data.s);
+    entry.pendingSignal = null;
     this._setupTransportListeners(sessionId);
     await this._persistSession(sessionId);
     this._emit('update', sessionId);
@@ -512,6 +581,10 @@ export class SessionManager {
     return this._entries.get(sessionId) ?? null;
   }
 
+  getPendingSignal(sessionId) {
+    return this._entries.get(sessionId)?.pendingSignal ?? null;
+  }
+
   // ── Transport Wiring ──
 
   _setupTransportListeners(sessionId) {
@@ -542,6 +615,7 @@ export class SessionManager {
           entry.session.transition(SessionStatus.CONNECTED);
         }
 
+        entry.pendingSignal = null;
         this._persistSession(sessionId);
         this._emit('update', sessionId);
 
