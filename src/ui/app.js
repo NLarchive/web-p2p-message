@@ -143,7 +143,10 @@ function showAnswerCode(answerCode) {
 function listenForConnection() {
   service.transport.onStateChange((state) => {
     if (state === 'connected') {
-      session.transition(SessionStatus.CONNECTING);
+      if (session.status === SessionStatus.AWAITING_ANSWER ||
+          session.status === SessionStatus.AWAITING_FINALIZE) {
+        session.transition(SessionStatus.CONNECTING);
+      }
       session.transition(SessionStatus.CONNECTED);
       showChat();
     }
