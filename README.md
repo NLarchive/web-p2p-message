@@ -124,7 +124,7 @@ https://nlarchive.github.io/web-p2p-message/
 
 Three-layer automated test suite:
 
-**Unit & Integration (134 tests via Vitest):**
+**Unit & Integration (145 tests via Vitest):**
 - domain rules and state transitions
 - encoding and validation helpers
 - crypto, signaling, storage, and identity adapters
@@ -147,7 +147,7 @@ Three-layer automated test suite:
 - envelope fuzzing (JSON parsing robustness)
 - nonce replay (AES-GCM IV deduplication at DataChannel layer)
 - invite signing (ECDSA P-256 per-field coverage: `t`, `i`, `s`; signature-stripping defense)
-- ratchet properties (directional HKDF, bidirectional symmetry, per-step uniqueness, non-extractable message keys)
+- ratchet properties (directional HKDF, bidirectional symmetry, per-step uniqueness, non-extractable message keys, initDhRatchet chain matching, DH healing step)
 
 **Build Verification:**
 - static artifact smoke test
@@ -175,7 +175,6 @@ Deferred until after MVP:
 - group chat
 - offline mesh replication across many peers
 - full CRDT sync engine
-- per-message key ratcheting (Double Ratchet protocol)
 - public signaling adapter integrations (WebTorrent, Nostr, Matrix)
 
 ## Delivery Tracking
@@ -188,7 +187,6 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - one-to-one chat only (no group support)
 - browser interoperability testing is narrower than production standards
 - post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
-- uses per-message symmetric ratchet (HMAC-SHA-256 advancing chain) — missing DH ratchet "healing" (full Double Ratchet would recover after mid-session key leak)
 
 ## Recent Security Fixes (Current)
 
@@ -198,6 +196,7 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **CSP hardening:** meta tag includes `sha256-...` hash for importmap script
 - **Invite signing (ECDSA P-256):** host generates a signing key per session; invite canonical bytes are signed; guest rejects any tampered payload
 - **Signature-stripping defense:** if the invite declares a signing key (`vk`) the `sig` field is now mandatory; a stripped signature is rejected as a downgrade attack
+- **DH ratchet healing (Double Ratchet):** each session now performs the full Signal-protocol Double Ratchet — `initDhRatchet` derives a shared root key + directed chains from P-256 ECDH combined with the XWing shared secret; the guest performs an initial DH step (Signal "Alice sends first") so the first outgoing message carries a fresh ephemeral key; every time a peer receives a message with a ratchet public key different from the last one seen, `_performDhRatchetStep` runs: two advances of the root chain + fresh local keypair discard — recovering forward secrecy even if an attacker learns an in-session chain key; out-of-order delivery is handled via a MAX_SKIP=100 bounded skipped-message-key buffer; nonce dedup operates on the inner `c` field of the `{v:2,pk,n,c}` wire envelope
 - **Combined fingerprint:** UI fingerprint now covers both KEM public key and signing public key (SHA-256 of both), making MITM substitution detectable
 - **Per-message symmetric ratchet:** HKDF derives directional send/receive chain keys from shared session secret; HMAC-SHA-256 advances each step to a fresh AES-GCM message key per message
 - **AES-GCM nonce deduplication:** per-session bounded set of seen IVs; replayed ciphertexts are silently dropped before decryption regardless of counter state
