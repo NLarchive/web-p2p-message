@@ -14,6 +14,8 @@
     "test:security": "npx playwright test security-audit --project=chromium",
     "test:security:headed": "npx playwright test security-audit --project=chromium --headed",
     "interceptor": "node message-interceptor/main.mjs",
+    "postinstall": "node scripts/vendor.mjs",
+    "dev:setup": "node scripts/vendor.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
