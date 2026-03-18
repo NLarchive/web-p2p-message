@@ -185,8 +185,8 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - one-to-one chat only (no group support)
 - browser interoperability testing is narrower than production standards
 - post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
-- uses per-session keys rather than per-message ratcheting (weaker forward secrecy than Signal's Double Ratchet)
-- timestamp and counter validation hardened but invite payloads remain unsigned (HMAC signature would prevent MITM timestamp revival)
+- uses per-message symmetric ratchet (HMAC-SHA-256 advancing chain) — missing DH ratchet "healing" (full Double Ratchet would recover after mid-session key leak)
+- unsigned replay path still possible via STUN/TURN bypass; nonce tracking would harden further
 
 ## Recent Security Fixes (Current)
 
@@ -194,6 +194,9 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **Counter validation:** rejects non-finite counters, values ≤ last received, and jumps >10,000 (DoS hardening)
 - **Forbidden key fields:** expanded checks for private key material (`seed` for XWing, `d` for ECDH) including nested objects
 - **CSP hardening:** meta tag includes `sha256-...` hash for importmap script
+- **Invite signing (ECDSA P-256):** host generates a signing key per session; invite canonical bytes are signed; guest rejects any tampered payload
+- **Combined fingerprint:** UI fingerprint now covers both KEM public key and signing public key (SHA-256 of both), making MITM substitution detectable
+- **Per-message symmetric ratchet:** HKDF derives directional send/receive chain keys from shared session secret; HMAC-SHA-256 advances each step to a fresh AES-GCM message key per message
 - **Branch sync:** `main` and `master` now point to identical commits; older GitHub file views showed stale `master` until force-push
 
 ## Notes
