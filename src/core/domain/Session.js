@@ -95,7 +95,10 @@ export class Session {
   }
 
   validateReceivedCounter(counter) {
+    if (typeof counter !== 'number' || !isFinite(counter) || counter < 1) return false;
     if (counter <= this._lastReceivedCounter) return false;
+    // Reject implausibly large jumps — prevents counter-flooding DoS
+    if (counter - this._lastReceivedCounter > 10_000) return false;
     this._lastReceivedCounter = counter;
     return true;
   }

@@ -60,4 +60,17 @@ describe('ManualCodeSignalingAdapter', () => {
     const encoded = adapter.encodeOffer(expired);
     expect(() => adapter.decodeOffer(encoded)).toThrow('expired');
   });
+
+  it('throws InvalidInviteError for a future timestamp', () => {
+    const future = { ...sampleOffer, createdAt: Date.now() + 120_000 };
+    const encoded = adapter.encodeOffer(future);
+    expect(() => adapter.decodeOffer(encoded)).toThrow(/timestamp|future/i);
+  });
+
+  it('throws InvalidInviteError for Infinity timestamp', () => {
+    // JSON.stringify coerces Infinity → null, so the missing-fields guard fires
+    const inf = { ...sampleOffer, createdAt: Infinity };
+    const encoded = adapter.encodeOffer(inf);
+    expect(() => adapter.decodeOffer(encoded)).toThrow(/required|timestamp|finite/i);
+  });
 });

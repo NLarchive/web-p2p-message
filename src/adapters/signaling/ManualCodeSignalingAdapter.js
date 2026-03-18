@@ -4,7 +4,7 @@ import {
   InvalidInviteError,
   SessionExpiredError,
 } from '../../shared/errors/AppErrors.js';
-import { isExpired } from '../../shared/validation/constraints.js';
+import { isExpired, validateTimestamp } from '../../shared/validation/constraints.js';
 
 export class ManualCodeSignalingAdapter extends ISignalingPort {
   encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, cipherText }) {
@@ -22,6 +22,10 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
     }
     if (!data.s || !data.k || !data.i || !data.t) {
       throw new InvalidInviteError('Invite is missing required fields');
+    }
+    const tsError = validateTimestamp(data.t);
+    if (tsError) {
+      throw new InvalidInviteError(`Invalid invite timestamp: ${tsError}`);
     }
     if (isExpired(data.t)) {
       throw new SessionExpiredError('Invite has expired');

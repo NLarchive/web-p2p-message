@@ -84,6 +84,20 @@ describe('Session', () => {
     expect(s.validateReceivedCounter(5)).toBe(true); // gap is fine
   });
 
+  it('rejects a counter jump exceeding the max-skip window', () => {
+    const s = new Session({ id: 'skip', role: 'host' });
+    expect(s.validateReceivedCounter(1)).toBe(true);
+    expect(s.validateReceivedCounter(10_002)).toBe(false); // jump > 10_000
+    expect(s.validateReceivedCounter(5)).toBe(true);       // normal after failed probe
+  });
+
+  it('rejects non-finite counter values', () => {
+    const s = new Session({ id: 'inf-counter', role: 'host' });
+    expect(s.validateReceivedCounter(Infinity)).toBe(false);
+    expect(s.validateReceivedCounter(-1)).toBe(false);
+    expect(s.validateReceivedCounter(0)).toBe(false);
+  });
+
   it('serializes to JSON', () => {
     const s = new Session({ id: 'j', role: 'guest' });
     const json = s.toJSON();
