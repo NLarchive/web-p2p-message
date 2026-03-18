@@ -7,6 +7,7 @@ import { MockSignalingPort } from '../../helpers/MockSignalingPort.js';
 import { MockIdentityPort } from '../../helpers/MockIdentityPort.js';
 import { MockStoragePort } from '../../helpers/MockStoragePort.js';
 import { MockTransportPort } from '../../helpers/MockTransportPort.js';
+import { encodeJson, decodeText } from '../../../src/shared/encoding/base64url.js';
 
 // Mock crypto.subtle.exportKey for mock keys
 const origExportKey = crypto.subtle.exportKey.bind(crypto.subtle);
@@ -271,5 +272,39 @@ describe('SessionManager', () => {
     expect(msgs.length).toBe(2);
     expect(msgs[0].text).toBe('First');
     expect(msgs[1].text).toBe('Second');
+  });
+
+  it('invite code includes signature when crypto supports signing', async () => {
+    const { manager } = createManager();
+    const { inviteCode } = await manager.createSession('Signed Chat');
+    // MockSignalingPort encodes as JSON
+    const payload = JSON.parse(inviteCode);
+    expect(payload.signature).toBeDefined();
+    expect(payload.signingPublicKeyJwk).toBeDefined();
+  });
+
+  it('joinSession rejects a tampered invite signature', async () => {
+    const badCrypto = new MockCryptoPort();
+    badCrypto.verifyPayload = async () => false; // always reject
+
+    const manager2 = new SessionManager({
+      crypto: badCrypto,
+      signaling: new MockSignalingPort(),
+      identity: new MockIdentityPort(),
+      storage: new MockStoragePort(),
+      createTransport: () => new MockTransportPort(),
+    });
+
+    // Encode a tampered invite using MockSignalingPort JSON format
+    const tamperedInvite = JSON.stringify({
+      type: 'offer',
+      sdp: { type: 'offer', sdp: 'v=0' },
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'a', y: 'b' },
+      sessionId: 'test-session',
+      createdAt: Date.now(),
+      signingPublicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'sx', y: 'sy', use: 'sig' },
+      signature: 'AAAA',
+    });
+    await expect(manager2.joinSession(tamperedInvite)).rejects.toThrow(/signature/i);
   });
 });

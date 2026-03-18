@@ -1,5 +1,16 @@
 import { ISignalingPort } from '../../core/ports/ISignalingPort.js';
 import { encodeJson, decodeJson } from '../../shared/encoding/base64url.js';
+
+/**
+ * Produces a deterministic byte sequence over the invite fields that are
+ * covered by the ECDSA signature.  Both the signer (host) and verifier
+ * (guest) must call this with the same field values to get the same bytes.
+ */
+export function inviteCanonicalBytes({ sdp, publicKeyJwk, sessionId, createdAt, signingPublicKeyJwk }) {
+  return new TextEncoder().encode(
+    JSON.stringify({ s: sdp, k: publicKeyJwk, i: sessionId, t: createdAt, vk: signingPublicKeyJwk }),
+  );
+}
 import {
   InvalidInviteError,
   SessionExpiredError,
@@ -7,9 +18,13 @@ import {
 import { isExpired, validateTimestamp } from '../../shared/validation/constraints.js';
 
 export class ManualCodeSignalingAdapter extends ISignalingPort {
-  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, cipherText }) {
+  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, cipherText, signingPublicKeyJwk, signature }) {
     const payload = { s: sdp, k: publicKeyJwk, i: sessionId, t: createdAt };
     if (cipherText) payload.c = cipherText;
+    if (signingPublicKeyJwk && signature) {
+      payload.vk = signingPublicKeyJwk;
+      payload.sig = signature; // base64url string
+    }
     return encodeJson(payload);
   }
 
@@ -36,6 +51,8 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
       sessionId: data.i,
       createdAt: data.t,
       cipherText: data.c ?? null,
+      signingPublicKeyJwk: data.vk ?? null,
+      signature: data.sig ?? null,
     };
   }
 

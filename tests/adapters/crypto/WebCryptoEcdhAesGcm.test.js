@@ -115,6 +115,99 @@ describe('WebCryptoEcdhAesGcm', () => {
     expect(fp).toMatch(/^[0-9a-f]{2}(:[0-9a-f]{2}){7}$/);
   });
 
+  it('combines two keys into one fingerprint', async () => {
+    const kpA = await adapter.generateKeyPair();
+    const kpB = await adapter.generateKeyPair();
+    const jwkA = await adapter.exportPublicKey(kpA.publicKey);
+    const jwkB = await adapter.exportPublicKey(kpB.publicKey);
+    const single = await adapter.fingerprint(jwkA);
+    const combined = await adapter.fingerprint(jwkA, jwkB);
+    expect(combined).not.toBe(single);
+    expect(combined).toMatch(/^[0-9a-f]{2}(:[0-9a-f]{2}){7}$/);
+  });
+
+  it('signing key pair signs and verifies a payload', async () => {
+    const sigKp = await adapter.generateSigningKeyPair();
+    const sigPubJwk = await adapter.exportSigningPublicKey(sigKp.publicKey);
+    const bytes = new TextEncoder().encode('canonical payload bytes');
+    const sig = await adapter.signPayload(bytes, sigKp.privateKey);
+    const valid = await adapter.verifyPayload(bytes, sig, sigPubJwk);
+    expect(valid).toBe(true);
+  });
+
+  it('verifyPayload rejects tampered bytes', async () => {
+    const sigKp = await adapter.generateSigningKeyPair();
+    const sigPubJwk = await adapter.exportSigningPublicKey(sigKp.publicKey);
+    const bytes = new TextEncoder().encode('original');
+    const sig = await adapter.signPayload(bytes, sigKp.privateKey);
+    const tampered = new TextEncoder().encode('tampered');
+    const valid = await adapter.verifyPayload(tampered, sig, sigPubJwk);
+    expect(valid).toBe(false);
+  });
+
+  it('derives symmetric ratchet chains from a shared key', async () => {
+    const kpA = await adapter.generateKeyPair();
+    const kpB = await adapter.generateKeyPair();
+    const pubB = await adapter.importPublicKey(await adapter.exportPublicKey(kpB.publicKey));
+    const sharedKey = await adapter.deriveSharedKey(kpA.privateKey, pubB);
+
+    const host = await adapter.deriveRatchetKeys(sharedKey, 'host');
+    const guest = await adapter.deriveRatchetKeys(sharedKey, 'guest');
+
+    expect(host.sendChainKey).toBeInstanceOf(Uint8Array);
+    expect(host.receiveChainKey).toBeInstanceOf(Uint8Array);
+    // host send chain == guest receive chain (and vice versa)
+    expect(host.sendChainKey).toEqual(guest.receiveChainKey);
+    expect(host.receiveChainKey).toEqual(guest.sendChainKey);
+  });
+
+  it('advanceChain produces a message key and advances state', async () => {
+    const kpA = await adapter.generateKeyPair();
+    const kpB = await adapter.generateKeyPair();
+    const pubB = await adapter.importPublicKey(await adapter.exportPublicKey(kpB.publicKey));
+    const sharedKey = await adapter.deriveSharedKey(kpA.privateKey, pubB);
+    const { sendChainKey } = await adapter.deriveRatchetKeys(sharedKey, 'host');
+
+    const step1 = await adapter.advanceChain(sendChainKey);
+    const step2 = await adapter.advanceChain(step1.nextChainKey);
+
+    expect(step1.messageKey).toBeDefined();
+    expect(step2.messageKey).toBeDefined();
+    // Different chain steps produce different message keys
+    const enc1 = await adapter.encrypt('msg', step1.messageKey);
+    await expect(adapter.decrypt(enc1, step2.messageKey)).rejects.toThrow();
+  });
+
+  it('ratchet encrypt/decrypt round-trip: host sends, guest receives', async () => {
+    const kpA = await adapter.generateKeyPair();
+    const kpB = await adapter.generateKeyPair();
+    const pubA = await adapter.importPublicKey(await adapter.exportPublicKey(kpA.publicKey));
+    const pubB = await adapter.importPublicKey(await adapter.exportPublicKey(kpB.publicKey));
+    const sharedAB = await adapter.deriveSharedKey(kpA.privateKey, pubB);
+    const sharedBA = await adapter.deriveSharedKey(kpB.privateKey, pubA);
+
+    const hostChains = await adapter.deriveRatchetKeys(sharedAB, 'host');
+    const guestChains = await adapter.deriveRatchetKeys(sharedBA, 'guest');
+
+    // Host sends msg1
+    const { messageKey: mkey1, nextChainKey: nextSend1 } = await adapter.advanceChain(hostChains.sendChainKey);
+    const ct1 = await adapter.encrypt('hello', mkey1);
+
+    // Guest receives msg1
+    const { messageKey: rmkey1 } = await adapter.advanceChain(guestChains.receiveChainKey);
+    expect(await adapter.decrypt(ct1, rmkey1)).toBe('hello');
+
+    // Host sends msg2 with advanced chain
+    const { messageKey: mkey2 } = await adapter.advanceChain(nextSend1);
+    const ct2 = await adapter.encrypt('world', mkey2);
+
+    // Guest receives msg2
+    const { messageKey: rmkey2 } = await adapter.advanceChain(
+      (await adapter.advanceChain(guestChains.receiveChainKey)).nextChainKey
+    );
+    expect(await adapter.decrypt(ct2, rmkey2)).toBe('world');
+  });
+
   it('produces different fingerprints for different keys', async () => {
     const kpA = await adapter.generateKeyPair();
     const kpB = await adapter.generateKeyPair();

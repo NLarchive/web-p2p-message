@@ -68,8 +68,38 @@ export class ICryptoPort {
     throw new Error('Not implemented');
   }
 
-  /** @returns {Promise<string>} short hex fingerprint for UI verification */
-  async fingerprint(publicKeyJwk) {
+  /** @returns {Promise<string>} hex fingerprint; pass a second JWK to cover both keys */
+  async fingerprint(primaryKeyJwk, secondaryKeyJwk = null) {
+    throw new Error('Not implemented');
+  }
+
+  /** @returns {Promise<{publicKey, privateKey}>} ECDSA P-256 signing key pair */
+  async generateSigningKeyPair() {
+    throw new Error('Not implemented');
+  }
+
+  /** @returns {Promise<object>} JWK representation of the ECDSA signing public key */
+  async exportSigningPublicKey(publicKey) {
+    throw new Error('Not implemented');
+  }
+
+  /** @returns {Promise<Uint8Array>} ECDSA-SHA256 signature over the byte array */
+  async signPayload(bytes, privateKey) {
+    throw new Error('Not implemented');
+  }
+
+  /** @returns {Promise<boolean>} true if signature is valid */
+  async verifyPayload(bytes, signature, publicKeyJwk) {
+    throw new Error('Not implemented');
+  }
+
+  /** @returns {Promise<{sendChainKey: Uint8Array, receiveChainKey: Uint8Array}>} */
+  async deriveRatchetKeys(sharedKey, role) {
+    throw new Error('Not implemented');
+  }
+
+  /** @returns {Promise<{messageKey: CryptoKey, nextChainKey: Uint8Array}>} */
+  async advanceChain(chainKeyBytes) {
     throw new Error('Not implemented');
   }
 }

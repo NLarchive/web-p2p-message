@@ -131,15 +131,114 @@ export class WebCryptoEcdhAesGcm extends ICryptoPort {
     }
   }
 
-  async fingerprint(publicKeyJwk) {
+  async fingerprint(primaryKeyJwk, secondaryKeyJwk = null) {
     try {
-      const raw = new TextEncoder().encode(JSON.stringify(publicKeyJwk));
+      const input = secondaryKeyJwk
+        ? `${JSON.stringify(primaryKeyJwk)}|${JSON.stringify(secondaryKeyJwk)}`
+        : JSON.stringify(primaryKeyJwk);
+      const raw = new TextEncoder().encode(input);
       const hash = await crypto.subtle.digest('SHA-256', raw);
       return Array.from(new Uint8Array(hash).slice(0, FINGERPRINT_BYTES))
         .map((b) => b.toString(16).padStart(2, '0'))
         .join(':');
     } catch (e) {
       throw new CryptoError(`Fingerprint generation failed: ${e.message}`);
+    }
+  }
+
+  async generateSigningKeyPair() {
+    try {
+      return await crypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['sign', 'verify'],
+      );
+    } catch (e) {
+      throw new CryptoError(`Signing key generation failed: ${e.message}`);
+    }
+  }
+
+  async exportSigningPublicKey(publicKey) {
+    try {
+      return await crypto.subtle.exportKey('jwk', publicKey);
+    } catch (e) {
+      throw new CryptoError(`Signing public key export failed: ${e.message}`);
+    }
+  }
+
+  async signPayload(bytes, privateKey) {
+    try {
+      const sig = await crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        privateKey,
+        bytes,
+      );
+      return new Uint8Array(sig);
+    } catch (e) {
+      throw new CryptoError(`Payload signing failed: ${e.message}`);
+    }
+  }
+
+  async verifyPayload(bytes, signature, publicKeyJwk) {
+    try {
+      const key = await crypto.subtle.importKey(
+        'jwk',
+        publicKeyJwk,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['verify'],
+      );
+      return await crypto.subtle.verify(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        key,
+        signature,
+        bytes,
+      );
+    } catch (e) {
+      throw new CryptoError(`Payload verification failed: ${e.message}`);
+    }
+  }
+
+  async deriveRatchetKeys(sharedKey, role) {
+    try {
+      const rootBytes = await crypto.subtle.exportKey('raw', sharedKey);
+      const hkdfKey = await crypto.subtle.importKey('raw', rootBytes, 'HKDF', false, ['deriveBits']);
+      const enc = new TextEncoder();
+      const [aBits, bBits] = await Promise.all([
+        crypto.subtle.deriveBits(
+          { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: enc.encode('chain:host->guest') },
+          hkdfKey, 256,
+        ),
+        crypto.subtle.deriveBits(
+          { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: enc.encode('chain:guest->host') },
+          hkdfKey, 256,
+        ),
+      ]);
+      const chainAB = new Uint8Array(aBits);
+      const chainBA = new Uint8Array(bBits);
+      return role === 'host'
+        ? { sendChainKey: chainAB, receiveChainKey: chainBA }
+        : { sendChainKey: chainBA, receiveChainKey: chainAB };
+    } catch (e) {
+      throw new CryptoError(`Ratchet key derivation failed: ${e.message}`);
+    }
+  }
+
+  async advanceChain(chainKeyBytes) {
+    try {
+      const hmacKey = await crypto.subtle.importKey(
+        'raw', chainKeyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+      );
+      const [msgKeyBuf, nextKeyBuf] = await Promise.all([
+        crypto.subtle.sign('HMAC', hmacKey, Uint8Array.from([0x01])),
+        crypto.subtle.sign('HMAC', hmacKey, Uint8Array.from([0x02])),
+      ]);
+      const messageKey = await crypto.subtle.importKey(
+        'raw', new Uint8Array(msgKeyBuf), AES_PARAMS, false, ['encrypt', 'decrypt'],
+      );
+      return { messageKey, nextChainKey: new Uint8Array(nextKeyBuf) };
+    } catch (e) {
+      throw new CryptoError(`Chain advancement failed: ${e.message}`);
     }
   }
 }

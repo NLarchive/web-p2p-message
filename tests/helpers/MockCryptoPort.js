@@ -57,7 +57,32 @@ export class MockCryptoPort extends ICryptoPort {
     return ciphertext.slice(4);
   }
 
-  async fingerprint(publicKeyJwk) {
-    return `fp:${publicKeyJwk.x || 'unknown'}`;
+  async fingerprint(primaryKeyJwk, secondaryKeyJwk = null) {
+    const x = primaryKeyJwk.x || 'unknown';
+    return secondaryKeyJwk ? `fp:${x}+signed` : `fp:${x}`;
   }
+
+  async generateSigningKeyPair() {
+    const id = ++counter;
+    return {
+      publicKey: { _mock: true, id, type: 'signing-public' },
+      privateKey: { _mock: true, id, type: 'signing-private' },
+    };
+  }
+
+  async exportSigningPublicKey(publicKey) {
+    return { kty: 'EC', crv: 'P-256', use: 'sig', x: `mock_sig_x_${publicKey.id}`, y: `mock_sig_y_${publicKey.id}` };
+  }
+
+  async signPayload(_bytes, _privateKey) {
+    return new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+  }
+
+  async verifyPayload(_bytes, _signature, _publicKeyJwk) {
+    return true;
+  }
+
+  // Ratchet stubs — return null to trigger fallback to sharedKey in SessionManager
+  async deriveRatchetKeys(_sharedKey, _role) { return null; }
+  async advanceChain(_chainKey) { return null; }
 }

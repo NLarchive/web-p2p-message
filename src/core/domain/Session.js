@@ -1,5 +1,6 @@
 import { SESSION_EXPIRY_MS } from '../../shared/validation/constraints.js';
 import { PeerIdentity } from './PeerIdentity.js';
+import { encode, decode } from '../../shared/encoding/base64url.js';
 
 export const SessionStatus = Object.freeze({
   CREATED: 'created',
@@ -57,6 +58,8 @@ export class Session {
     this.localIdentity = null;
     this.remoteIdentity = null;
     this.sharedKey = null;
+    this.sendChainKey = null;    // Uint8Array — ratchet send chain
+    this.receiveChainKey = null; // Uint8Array — ratchet receive chain
     this.messageCounter = 0;
     this._lastReceivedCounter = 0;
     this.errorReason = null;
@@ -133,6 +136,8 @@ export class Session {
       localIdentity: this.localIdentity?.toJSON() ?? null,
       remoteIdentity: this.remoteIdentity?.toJSON() ?? null,
       privateKeyJwk: privateKeyJwk ?? null,
+      sendChainKey: this.sendChainKey ? encode(this.sendChainKey) : null,
+      receiveChainKey: this.receiveChainKey ? encode(this.receiveChainKey) : null,
     };
   }
 
@@ -152,6 +157,8 @@ export class Session {
     session.title = data.title ?? null;
     session.messageCounter = data.messageCounter ?? 0;
     session._lastReceivedCounter = data.lastReceivedCounter ?? 0;
+    if (data.sendChainKey) session.sendChainKey = decode(data.sendChainKey);
+    if (data.receiveChainKey) session.receiveChainKey = decode(data.receiveChainKey);
     if (data.localIdentity) {
       session.localIdentity = PeerIdentity.fromJSON(data.localIdentity);
     }

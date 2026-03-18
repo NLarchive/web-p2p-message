@@ -1,13 +1,15 @@
 import { ISignalingPort } from '../../src/core/ports/ISignalingPort.js';
 
 export class MockSignalingPort extends ISignalingPort {
-  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt }) {
+  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, signingPublicKeyJwk, signature }) {
     return JSON.stringify({
       type: 'offer',
       sdp,
       publicKeyJwk,
       sessionId,
       createdAt,
+      signingPublicKeyJwk: signingPublicKeyJwk ?? null,
+      signature: signature ?? null,
     });
   }
 
@@ -18,6 +20,8 @@ export class MockSignalingPort extends ISignalingPort {
       publicKeyJwk: data.publicKeyJwk,
       sessionId: data.sessionId,
       createdAt: data.createdAt,
+      signingPublicKeyJwk: data.signingPublicKeyJwk ?? null,
+      signature: data.signature ?? null,
     };
   }
 

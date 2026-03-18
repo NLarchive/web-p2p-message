@@ -7,7 +7,9 @@ import {
   unwrap,
   ControlAction,
 } from '../domain/Envelope.js';
-import { encodeJson, decodeJson } from '../../shared/encoding/base64url.js';
+import { encode, decode, encodeJson, decodeJson } from '../../shared/encoding/base64url.js';
+import { inviteCanonicalBytes } from '../../adapters/signaling/ManualCodeSignalingAdapter.js';
+import { InvalidInviteError } from '../../shared/errors/AppErrors.js';
 
 const STORAGE_INDEX_KEY = 'session_ids';
 const sessionStorageKey = (id) => `session:${id}`;
@@ -153,11 +155,44 @@ export class SessionManager {
     });
 
     const offerSdp = await transport.createOffer();
+
+    // Generate an ECDSA P-256 signing key to authenticate the invite payload.
+    // The combined fingerprint (KEM key + signing key) is what the user compares
+    // out-of-band — forging the signature requires the signing private key.
+    let signingPublicKeyJwk = null;
+    let signature = null;
+    if (this._crypto.generateSigningKeyPair) {
+      try {
+        const signingKeyPair = await this._crypto.generateSigningKeyPair();
+        signingPublicKeyJwk = await this._crypto.exportSigningPublicKey(signingKeyPair.publicKey);
+        const canonical = inviteCanonicalBytes({
+          sdp: offerSdp,
+          publicKeyJwk: localId.publicKeyJwk,
+          sessionId,
+          createdAt: session.createdAt,
+          signingPublicKeyJwk,
+        });
+        const sigBytes = await this._crypto.signPayload(canonical, signingKeyPair.privateKey);
+        signature = encode(sigBytes);
+      } catch {
+        signingPublicKeyJwk = null;
+        signature = null;
+      }
+    }
+
+    // Extend local fingerprint to cover both KEM key and signing key.
+    if (signingPublicKeyJwk) {
+      const combinedFp = await this._crypto.fingerprint(localId.publicKeyJwk, signingPublicKeyJwk);
+      session.localIdentity.fingerprint = combinedFp;
+    }
+
     const inviteCode = this._signaling.encodeOffer({
       sdp: offerSdp,
       publicKeyJwk: localId.publicKeyJwk,
       sessionId,
       createdAt: session.createdAt,
+      signingPublicKeyJwk,
+      signature,
     });
 
     session.transition(SessionStatus.AWAITING_ANSWER);
@@ -186,6 +221,23 @@ export class SessionManager {
 
   async joinSession(inviteCode) {
     const offer = this._signaling.decodeOffer(inviteCode);
+
+    // Verify invite signature when present — prevents MITM timestamp revival.
+    if (offer.signature && offer.signingPublicKeyJwk && this._crypto.verifyPayload) {
+      const canonical = inviteCanonicalBytes({
+        sdp: offer.sdp,
+        publicKeyJwk: offer.publicKeyJwk,
+        sessionId: offer.sessionId,
+        createdAt: offer.createdAt,
+        signingPublicKeyJwk: offer.signingPublicKeyJwk,
+      });
+      const sigBytes = decode(offer.signature);
+      const valid = await this._crypto.verifyPayload(canonical, sigBytes, offer.signingPublicKeyJwk);
+      if (!valid) {
+        throw new InvalidInviteError('Invite signature is invalid — payload may have been tampered');
+      }
+    }
+
     const transport = this._createTransport(offer.sessionId);
     const localId = await this._identity.createIdentity();
 
@@ -203,8 +255,10 @@ export class SessionManager {
     const remotePublicKey = await this._crypto.importPublicKey(
       offer.publicKeyJwk,
     );
+    // Extend remote fingerprint to cover the signing key when invite was signed.
     const remoteFingerprint = await this._crypto.fingerprint(
       offer.publicKeyJwk,
+      offer.signingPublicKeyJwk ?? null,
     );
     session.remoteIdentity = new PeerIdentity({
       publicKeyJwk: offer.publicKeyJwk,
@@ -224,6 +278,12 @@ export class SessionManager {
       );
     }
     session.sharedKey = sharedKey;
+
+    // Initialise per-direction ratchet chains from the shared session key.
+    if (this._crypto.deriveRatchetKeys) {
+      const chains = await this._crypto.deriveRatchetKeys(sharedKey, 'guest');
+      if (chains) { session.sendChainKey = chains.sendChainKey; session.receiveChainKey = chains.receiveChainKey; }
+    }
 
     const answerSdp = await transport.acceptOffer(offer.sdp);
     const answerCode = this._signaling.encodeAnswer({
@@ -288,6 +348,12 @@ export class SessionManager {
           remotePublicKey,
         );
     entry.session.sharedKey = sharedKey;
+
+    // Initialise ratchet chains for the host from the shared session key.
+    if (this._crypto.deriveRatchetKeys) {
+      const chains = await this._crypto.deriveRatchetKeys(sharedKey, 'host');
+      if (chains) { entry.session.sendChainKey = chains.sendChainKey; entry.session.receiveChainKey = chains.receiveChainKey; }
+    }
 
     await entry.transport.acceptAnswer(answer.sdp);
     entry.pendingSignal = null;
@@ -361,6 +427,10 @@ export class SessionManager {
       const encapsulated = await this._crypto.encapsulateSharedKey(remotePublicKey);
       entry.session.sharedKey = encapsulated.sharedKey;
       cipherText = encapsulated.cipherText;
+      if (this._crypto.deriveRatchetKeys) {
+        const chains = await this._crypto.deriveRatchetKeys(encapsulated.sharedKey, 'guest');
+        if (chains) { entry.session.sendChainKey = chains.sendChainKey; entry.session.receiveChainKey = chains.receiveChainKey; }
+      }
     }
 
     const answerCode = encodeJson({ s: answerSdp, i: sessionId, r: true, c: cipherText });
@@ -385,10 +455,15 @@ export class SessionManager {
     if (data.i !== sessionId) throw new Error('Answer session mismatch');
 
     if (this._crypto.handshakeMode === 'kem' && data.c) {
-      entry.session.sharedKey = await this._crypto.decapsulateSharedKey(
+      const newKey = await this._crypto.decapsulateSharedKey(
         entry.keyPair.privateKey,
         data.c,
       );
+      entry.session.sharedKey = newKey;
+      if (this._crypto.deriveRatchetKeys) {
+        const chains = await this._crypto.deriveRatchetKeys(newKey, 'host');
+      if (chains) { entry.session.sendChainKey = chains.sendChainKey; entry.session.receiveChainKey = chains.receiveChainKey; }
+      }
     }
 
     await entry.transport.acceptAnswer(data.s);
@@ -417,10 +492,7 @@ export class SessionManager {
     });
 
     const envelope = wrapChatMessage(JSON.parse(message.toPlaintext()));
-    const encrypted = await this._crypto.encrypt(
-      envelope,
-      entry.session.sharedKey,
-    );
+    const encrypted = await this._ratchetEncrypt(entry, envelope);
     entry.transport.send(encrypted);
 
     entry.messages.push({
@@ -448,10 +520,7 @@ export class SessionManager {
     if (entry.session.status === SessionStatus.CONNECTED && entry.transport) {
       try {
         const envelope = wrapControl(ControlAction.TITLE, { title });
-        const encrypted = await this._crypto.encrypt(
-          envelope,
-          entry.session.sharedKey,
-        );
+        const encrypted = await this._ratchetEncrypt(entry, envelope);
         if (entry.transport) entry.transport.send(encrypted);
       } catch {
         /* transport may have been closed during async encrypt */
@@ -468,10 +537,7 @@ export class SessionManager {
 
     if (entry.session.status === SessionStatus.CONNECTED && entry.transport) {
       const envelope = wrapControl(ControlAction.DELETE_REQUEST);
-      const encrypted = await this._crypto.encrypt(
-        envelope,
-        entry.session.sharedKey,
-      );
+      const encrypted = await this._ratchetEncrypt(entry, envelope);
       entry.transport.send(encrypted);
     }
 
@@ -486,10 +552,7 @@ export class SessionManager {
 
     if (entry.session.status === SessionStatus.CONNECTED && entry.transport) {
       const envelope = wrapControl(ControlAction.DELETE_CONFIRM);
-      const encrypted = await this._crypto.encrypt(
-        envelope,
-        entry.session.sharedKey,
-      );
+      const encrypted = await this._ratchetEncrypt(entry, envelope);
       entry.transport.send(encrypted);
     }
 
@@ -639,10 +702,7 @@ export class SessionManager {
     transport.onMessage(async (encryptedData) => {
       if (!entry.transport || entry.transport !== transport) return;
       try {
-        const plaintext = await this._crypto.decrypt(
-          encryptedData,
-          entry.session.sharedKey,
-        );
+        const plaintext = await this._ratchetDecrypt(entry, encryptedData);
         const envelope = unwrap(plaintext);
 
         if (envelope.type === 'message') {
@@ -668,6 +728,30 @@ export class SessionManager {
         // Decryption or parse failure — ignore
       }
     });
+  }
+
+  // ── Ratchet helpers ──
+  // When deriveRatchetKeys / advanceChain are available (real crypto adapters),
+  // each message uses a fresh AES-GCM key derived by HMAC-advancing the chain.
+  // When they are not (mocked in tests), fall back to the static sharedKey so
+  // that the entire existing mock-based test suite continues to pass unchanged.
+
+  async _ratchetEncrypt(entry, plaintext) {
+    if (entry.session.sendChainKey && this._crypto.advanceChain) {
+      const { messageKey, nextChainKey } = await this._crypto.advanceChain(entry.session.sendChainKey);
+      entry.session.sendChainKey = nextChainKey;
+      return this._crypto.encrypt(plaintext, messageKey);
+    }
+    return this._crypto.encrypt(plaintext, entry.session.sharedKey);
+  }
+
+  async _ratchetDecrypt(entry, ciphertext) {
+    if (entry.session.receiveChainKey && this._crypto.advanceChain) {
+      const { messageKey, nextChainKey } = await this._crypto.advanceChain(entry.session.receiveChainKey);
+      entry.session.receiveChainKey = nextChainKey;
+      return this._crypto.decrypt(ciphertext, messageKey);
+    }
+    return this._crypto.decrypt(ciphertext, entry.session.sharedKey);
   }
 
   _handleControl(sessionId, action, data) {
