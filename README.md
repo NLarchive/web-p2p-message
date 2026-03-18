@@ -2,6 +2,8 @@
 
 Client-side, browser-to-browser encrypted messaging with minimal external infrastructure. The app uses WebRTC for peer transport, WebCrypto for end-to-end encryption, and a manual code exchange so peers can connect without a backend that stores chat data.
 
+live on: https://nlarchive.github.io/web-p2p-message/
+
 ## Project Status
 
 This repository now contains a working MVP implementation with automated tests, a static site build, and GitHub Pages deployment support.
