@@ -7,7 +7,7 @@ import { MockSignalingPort } from '../../helpers/MockSignalingPort.js';
 import { MockIdentityPort } from '../../helpers/MockIdentityPort.js';
 import { MockStoragePort } from '../../helpers/MockStoragePort.js';
 import { MockTransportPort } from '../../helpers/MockTransportPort.js';
-import { encodeJson, decodeText } from '../../../src/shared/encoding/base64url.js';
+import { encodeJson, decodeText, encode, decode } from '../../../src/shared/encoding/base64url.js';
 
 // Mock crypto.subtle.exportKey for mock keys
 const origExportKey = crypto.subtle.exportKey.bind(crypto.subtle);
@@ -306,5 +306,60 @@ describe('SessionManager', () => {
       signature: 'AAAA',
     });
     await expect(manager2.joinSession(tamperedInvite)).rejects.toThrow(/signature/i);
+  });
+
+  it('rejects a replayed ciphertext (nonce deduplication)', async () => {
+    // A mock whose encrypt/decrypt use a real 12-byte IV prefix (base64url-encoded)
+    // so the nonce deduplication logic in _ratchetDecrypt fires on replay.
+    class NonceAwareMock extends MockCryptoPort {
+      async encrypt(plaintext) {
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const body = new TextEncoder().encode(plaintext);
+        const out = new Uint8Array(12 + body.length);
+        out.set(iv); out.set(body, 12);
+        return encode(out);
+      }
+      async decrypt(ciphertext) {
+        return new TextDecoder().decode(decode(ciphertext).slice(12));
+      }
+    }
+
+    const transports = [];
+    const manager = new SessionManager({
+      crypto: new NonceAwareMock(),
+      signaling: new MockSignalingPort(),
+      identity: new MockIdentityPort(),
+      storage: new MockStoragePort(),
+      createTransport: () => { const t = new MockTransportPort(); transports.push(t); return t; },
+    });
+
+    const { sessionId } = await manager.createSession('Replay Test');
+    const answerCode = JSON.stringify({
+      type: 'answer',
+      sdp: { type: 'answer', sdp: 'mock-sdp' },
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'peer_x', y: 'peer_y' },
+      sessionId,
+    });
+    await manager.finalizeSession(sessionId, answerCode);
+    transports[0].simulateStateChange('connected');
+
+    // Produce a ciphertext from the peer using the same NonceAwareMock format
+    const peerCrypto = new NonceAwareMock();
+    const payload = JSON.stringify({ t: 'm', d: { id: 'rep1', text: 'Replay me', from: 'fp', timestamp: Date.now(), counter: 1 } });
+    const ciphertext = await peerCrypto.encrypt(payload);
+
+    const received = [];
+    manager.on('message', (_id, msg) => received.push(msg));
+
+    // First delivery accepted
+    transports[0].simulateMessage(ciphertext);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(received.length).toBe(1);
+    expect(received[0].text).toBe('Replay me');
+
+    // Exact same ciphertext replayed — silently dropped (nonce already seen)
+    transports[0].simulateMessage(ciphertext);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(received.length).toBe(1);
   });
 });

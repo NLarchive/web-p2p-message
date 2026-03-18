@@ -186,7 +186,6 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - browser interoperability testing is narrower than production standards
 - post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
 - uses per-message symmetric ratchet (HMAC-SHA-256 advancing chain) — missing DH ratchet "healing" (full Double Ratchet would recover after mid-session key leak)
-- unsigned replay path still possible via STUN/TURN bypass; nonce tracking would harden further
 
 ## Recent Security Fixes (Current)
 
@@ -197,6 +196,7 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **Invite signing (ECDSA P-256):** host generates a signing key per session; invite canonical bytes are signed; guest rejects any tampered payload
 - **Combined fingerprint:** UI fingerprint now covers both KEM public key and signing public key (SHA-256 of both), making MITM substitution detectable
 - **Per-message symmetric ratchet:** HKDF derives directional send/receive chain keys from shared session secret; HMAC-SHA-256 advances each step to a fresh AES-GCM message key per message
+- **AES-GCM nonce deduplication:** per-session bounded set of seen IVs; replayed ciphertexts are silently dropped before decryption regardless of counter state
 - **Branch sync:** `main` and `master` now point to identical commits; older GitHub file views showed stale `master` until force-push
 
 ## Notes

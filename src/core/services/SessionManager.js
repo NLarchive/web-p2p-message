@@ -90,6 +90,7 @@ export class SessionManager {
         keyPair: null,
         privateKeyJwk,
         messages,
+        seenNonces: new Set(),
         pendingSignal: data.pendingSignal ?? null,
       });
     }
@@ -207,6 +208,7 @@ export class SessionManager {
       keyPair: localId.keyPair,
       privateKeyJwk,
       messages: [],
+      seenNonces: new Set(),
       pendingSignal: {
         type: 'invite',
         code: inviteCode,
@@ -305,6 +307,7 @@ export class SessionManager {
       keyPair: localId.keyPair,
       privateKeyJwk,
       messages: [],
+      seenNonces: new Set(),
       pendingSignal: {
         type: 'answer',
         code: answerCode,
@@ -432,6 +435,8 @@ export class SessionManager {
         if (chains) { entry.session.sendChainKey = chains.sendChainKey; entry.session.receiveChainKey = chains.receiveChainKey; }
       }
     }
+    // New connection — reset the nonce deduplication set
+    entry.seenNonces = new Set();
 
     const answerCode = encodeJson({ s: answerSdp, i: sessionId, r: true, c: cipherText });
 
@@ -465,6 +470,8 @@ export class SessionManager {
       if (chains) { entry.session.sendChainKey = chains.sendChainKey; entry.session.receiveChainKey = chains.receiveChainKey; }
       }
     }
+    // New connection — reset the nonce deduplication set
+    entry.seenNonces = new Set();
 
     await entry.transport.acceptAnswer(data.s);
     entry.pendingSignal = null;
@@ -746,6 +753,23 @@ export class SessionManager {
   }
 
   async _ratchetDecrypt(entry, ciphertext) {
+    // Nonce deduplication: extract the 12-byte AES-GCM IV and reject replays.
+    // Silently skipped when ciphertext is not valid base64url (e.g. in mock tests).
+    let nonceKey = null;
+    try {
+      const raw = decode(ciphertext);
+      if (raw.length > 12) nonceKey = encode(raw.slice(0, 12));
+    } catch {
+      // Non-base64url ciphertext (mock encrypt in tests) — no nonce to track
+    }
+    if (nonceKey !== null) {
+      if (entry.seenNonces.has(nonceKey)) throw new Error('Duplicate nonce — replay rejected');
+      entry.seenNonces.add(nonceKey);
+      // Bound to ~6 KB per session — evict oldest nonce once the cap is reached
+      if (entry.seenNonces.size > 500) {
+        entry.seenNonces.delete(entry.seenNonces.values().next().value);
+      }
+    }
     if (entry.session.receiveChainKey && this._crypto.advanceChain) {
       const { messageKey, nextChainKey } = await this._crypto.advanceChain(entry.session.receiveChainKey);
       entry.session.receiveChainKey = nextChainKey;
