@@ -225,7 +225,12 @@ export class SessionManager {
     const offer = this._signaling.decodeOffer(inviteCode);
 
     // Verify invite signature when present — prevents MITM timestamp revival.
-    if (offer.signature && offer.signingPublicKeyJwk && this._crypto.verifyPayload) {
+    // If a signing key (vk) is declared but the signature is absent the attacker
+    // may have stripped it to downgrade verification; reject immediately.
+    if (offer.signingPublicKeyJwk && this._crypto.verifyPayload) {
+      if (!offer.signature) {
+        throw new InvalidInviteError('Invite carries a signing key but no signature — possible signature-stripping attack');
+      }
       const canonical = inviteCanonicalBytes({
         sdp: offer.sdp,
         publicKeyJwk: offer.publicKeyJwk,

@@ -308,6 +308,21 @@ describe('SessionManager', () => {
     await expect(manager2.joinSession(tamperedInvite)).rejects.toThrow(/signature/i);
   });
 
+  it('joinSession rejects an invite where sig is stripped but vk is kept', async () => {
+    const { manager } = createManager();
+    // Build an invite that has vk but deliberately omits signature
+    const strippedInvite = JSON.stringify({
+      type: 'offer',
+      sdp: { type: 'offer', sdp: 'v=0' },
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'a', y: 'b' },
+      sessionId: 'test-session-strip',
+      createdAt: Date.now(),
+      signingPublicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'sx', y: 'sy', use: 'sig' },
+      // deliberately no 'signature' field
+    });
+    await expect(manager.joinSession(strippedInvite)).rejects.toThrow(/signature/i);
+  });
+
   it('rejects a replayed ciphertext (nonce deduplication)', async () => {
     // A mock whose encrypt/decrypt use a real 12-byte IV prefix (base64url-encoded)
     // so the nonce deduplication logic in _ratchetDecrypt fires on replay.

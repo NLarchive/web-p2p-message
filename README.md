@@ -124,7 +124,7 @@ https://nlarchive.github.io/web-p2p-message/
 
 Three-layer automated test suite:
 
-**Unit & Integration (120 tests via Vitest):**
+**Unit & Integration (134 tests via Vitest):**
 - domain rules and state transitions
 - encoding and validation helpers
 - crypto, signaling, storage, and identity adapters
@@ -136,7 +136,7 @@ Three-layer automated test suite:
 - WebRTC connection establishment
 - message encryption and delivery
 
-**Security Interceptor Suite (8 attack techniques):**
+**Security Interceptor Suite (11 attack techniques):**
 - payload analysis (forbidden key fields: `seed`, `d`, nested objects)
 - crypto brute-force (key length analysis)
 - MITM tampering (hybrid XWing key corruption)
@@ -145,6 +145,9 @@ Three-layer automated test suite:
 - invite expiry manipulation (Infinity, future timestamps rejected)
 - downgrade attack (algorithm substitution rejection)
 - envelope fuzzing (JSON parsing robustness)
+- nonce replay (AES-GCM IV deduplication at DataChannel layer)
+- invite signing (ECDSA P-256 per-field coverage: `t`, `i`, `s`; signature-stripping defense)
+- ratchet properties (directional HKDF, bidirectional symmetry, per-step uniqueness, non-extractable message keys)
 
 **Build Verification:**
 - static artifact smoke test
@@ -194,6 +197,7 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **Forbidden key fields:** expanded checks for private key material (`seed` for XWing, `d` for ECDH) including nested objects
 - **CSP hardening:** meta tag includes `sha256-...` hash for importmap script
 - **Invite signing (ECDSA P-256):** host generates a signing key per session; invite canonical bytes are signed; guest rejects any tampered payload
+- **Signature-stripping defense:** if the invite declares a signing key (`vk`) the `sig` field is now mandatory; a stripped signature is rejected as a downgrade attack
 - **Combined fingerprint:** UI fingerprint now covers both KEM public key and signing public key (SHA-256 of both), making MITM substitution detectable
 - **Per-message symmetric ratchet:** HKDF derives directional send/receive chain keys from shared session secret; HMAC-SHA-256 advances each step to a fresh AES-GCM message key per message
 - **AES-GCM nonce deduplication:** per-session bounded set of seen IVs; replayed ciphertexts are silently dropped before decryption regardless of counter state
