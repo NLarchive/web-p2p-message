@@ -6,9 +6,9 @@ import { encodeJson, decodeJson } from '../../shared/encoding/base64url.js';
  * covered by the ECDSA signature.  Both the signer (host) and verifier
  * (guest) must call this with the same field values to get the same bytes.
  */
-export function inviteCanonicalBytes({ sdp, publicKeyJwk, sessionId, createdAt, signingPublicKeyJwk }) {
+export function inviteCanonicalBytes({ sdp, publicKeyJwk, sessionId, createdAt, signingPublicKeyJwk, dhRatchetPublicKeyJwk }) {
   return new TextEncoder().encode(
-    JSON.stringify({ s: sdp, k: publicKeyJwk, i: sessionId, t: createdAt, vk: signingPublicKeyJwk }),
+    JSON.stringify({ s: sdp, k: publicKeyJwk, i: sessionId, t: createdAt, vk: signingPublicKeyJwk, rp: dhRatchetPublicKeyJwk ?? null }),
   );
 }
 import {
@@ -18,13 +18,14 @@ import {
 import { isExpired, validateTimestamp } from '../../shared/validation/constraints.js';
 
 export class ManualCodeSignalingAdapter extends ISignalingPort {
-  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, cipherText, signingPublicKeyJwk, signature }) {
+  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, cipherText, signingPublicKeyJwk, signature, dhRatchetPublicKeyJwk }) {
     const payload = { s: sdp, k: publicKeyJwk, i: sessionId, t: createdAt };
     if (cipherText) payload.c = cipherText;
     if (signingPublicKeyJwk && signature) {
       payload.vk = signingPublicKeyJwk;
-      payload.sig = signature; // base64url string
+      payload.sig = signature;
     }
+    if (dhRatchetPublicKeyJwk) payload.rp = dhRatchetPublicKeyJwk;
     return encodeJson(payload);
   }
 
@@ -53,12 +54,14 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
       cipherText: data.c ?? null,
       signingPublicKeyJwk: data.vk ?? null,
       signature: data.sig ?? null,
+      dhRatchetPublicKeyJwk: data.rp ?? null,
     };
   }
 
-  encodeAnswer({ sdp, publicKeyJwk, sessionId, cipherText }) {
+  encodeAnswer({ sdp, publicKeyJwk, sessionId, cipherText, dhRatchetPublicKeyJwk }) {
     const payload = { s: sdp, k: publicKeyJwk, i: sessionId };
     if (cipherText) payload.c = cipherText;
+    if (dhRatchetPublicKeyJwk) payload.rp = dhRatchetPublicKeyJwk;
     return encodeJson(payload);
   }
 
@@ -77,6 +80,7 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
       publicKeyJwk: data.k,
       sessionId: data.i,
       cipherText: data.c ?? null,
+      dhRatchetPublicKeyJwk: data.rp ?? null,
     };
   }
 }

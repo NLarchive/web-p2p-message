@@ -97,4 +97,65 @@ describe('HybridPqCryptoAdapter', () => {
       recvChain = nextRecv;
     }
   });
+
+  // ── DH Ratchet (Double Ratchet healing layer) ──
+
+  it('generateDhRatchetKeyPair returns exportable P-256 JWK pair', async () => {
+    const kp = await adapter.generateDhRatchetKeyPair();
+    expect(kp.publicKeyJwk.kty).toBe('EC');
+    expect(kp.publicKeyJwk.crv).toBe('P-256');
+    expect(kp.publicKeyJwk.x).toBeDefined();
+    expect(kp.publicKeyJwk.y).toBeDefined();
+    expect(kp.publicKeyJwk.d).toBeUndefined();
+    expect(kp.privateKeyJwk.d).toBeDefined();
+  });
+
+  it('dhRatchetEcdh is symmetric', async () => {
+    const kpA = await adapter.generateDhRatchetKeyPair();
+    const kpB = await adapter.generateDhRatchetKeyPair();
+    const outAB = await adapter.dhRatchetEcdh(kpA.privateKeyJwk, kpB.publicKeyJwk);
+    const outBA = await adapter.dhRatchetEcdh(kpB.privateKeyJwk, kpA.publicKeyJwk);
+    expect(outAB).toBeInstanceOf(Uint8Array);
+    expect(outAB.byteLength).toBe(32);
+    expect(outAB).toEqual(outBA);
+  });
+
+  it('initDhRatchet derives matching directed chains for host and guest', async () => {
+    const host = await adapter.generateKeyPair();
+    const { sharedKey: guestShared, cipherText } = await adapter.encapsulateSharedKey(host.publicKey);
+    const hostShared = await adapter.decapsulateSharedKey(host.privateKey, cipherText);
+
+    const ratchetH = await adapter.generateDhRatchetKeyPair();
+    const ratchetG = await adapter.generateDhRatchetKeyPair();
+
+    const hostChains = await adapter.initDhRatchet(hostShared, ratchetH.privateKeyJwk, ratchetG.publicKeyJwk, 'host');
+    const guestChains = await adapter.initDhRatchet(guestShared, ratchetG.privateKeyJwk, ratchetH.publicKeyJwk, 'guest');
+
+    // Directed chains are mirrored between host and guest
+    expect(hostChains.sendChainKey).toEqual(guestChains.receiveChainKey);
+    expect(hostChains.receiveChainKey).toEqual(guestChains.sendChainKey);
+    expect(hostChains.rootKey).toEqual(guestChains.rootKey);
+  });
+
+  it('DH ratchet step yields new root and chain keys', async () => {
+    const host = await adapter.generateKeyPair();
+    const { sharedKey: guestShared, cipherText } = await adapter.encapsulateSharedKey(host.publicKey);
+    const hostShared = await adapter.decapsulateSharedKey(host.privateKey, cipherText);
+
+    const ratchetH = await adapter.generateDhRatchetKeyPair();
+    const ratchetG = await adapter.generateDhRatchetKeyPair();
+    const { rootKey } = await adapter.initDhRatchet(hostShared, ratchetH.privateKeyJwk, ratchetG.publicKeyJwk, 'host');
+
+    // Simulate receiver seeing a new ratchet key (Double Ratchet "step")
+    const ratchetG2 = await adapter.generateDhRatchetKeyPair();
+    const dh1 = await adapter.dhRatchetEcdh(ratchetH.privateKeyJwk, ratchetG2.publicKeyJwk);
+    const { newRootKey: root2, newChainKey: recvChain } = await adapter.advanceRootChain(rootKey, dh1);
+    const ratchetH2 = await adapter.generateDhRatchetKeyPair();
+    const dh2 = await adapter.dhRatchetEcdh(ratchetH2.privateKeyJwk, ratchetG2.publicKeyJwk);
+    const { newRootKey: root3, newChainKey: sendChain } = await adapter.advanceRootChain(root2, dh2);
+
+    expect(root2).not.toEqual(rootKey);
+    expect(root3).not.toEqual(root2);
+    expect(sendChain).not.toEqual(recvChain);
+  });
 });

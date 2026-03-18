@@ -162,22 +162,37 @@ export class SessionManager {
     // out-of-band — forging the signature requires the signing private key.
     let signingPublicKeyJwk = null;
     let signature = null;
+    let dhRatchetPublicKeyJwk = null;
+    let dhRatchetPrivateKeyJwk = null;
+
     if (this._crypto.generateSigningKeyPair) {
       try {
         const signingKeyPair = await this._crypto.generateSigningKeyPair();
         signingPublicKeyJwk = await this._crypto.exportSigningPublicKey(signingKeyPair.publicKey);
+
+        // Generate the host's initial DH ratchet key pair alongside the signing key.
+        if (this._crypto.generateDhRatchetKeyPair) {
+          const drKp = await this._crypto.generateDhRatchetKeyPair();
+          dhRatchetPublicKeyJwk = drKp.publicKeyJwk;
+          dhRatchetPrivateKeyJwk = drKp.privateKeyJwk;
+        }
+
+        // Signature covers all invite fields including the ratchet public key.
         const canonical = inviteCanonicalBytes({
           sdp: offerSdp,
           publicKeyJwk: localId.publicKeyJwk,
           sessionId,
           createdAt: session.createdAt,
           signingPublicKeyJwk,
+          dhRatchetPublicKeyJwk,
         });
         const sigBytes = await this._crypto.signPayload(canonical, signingKeyPair.privateKey);
         signature = encode(sigBytes);
       } catch {
         signingPublicKeyJwk = null;
         signature = null;
+        dhRatchetPublicKeyJwk = null;
+        dhRatchetPrivateKeyJwk = null;
       }
     }
 
@@ -187,6 +202,13 @@ export class SessionManager {
       session.localIdentity.fingerprint = combinedFp;
     }
 
+    // Store host's ratchet keypair in session so it's ready when the guest's
+    // ratchet public key arrives in the answer (finalizeSession).
+    if (dhRatchetPublicKeyJwk) {
+      session.dhRatchetPublicKeyJwk = dhRatchetPublicKeyJwk;
+      session.dhRatchetPrivateKeyJwk = dhRatchetPrivateKeyJwk;
+    }
+
     const inviteCode = this._signaling.encodeOffer({
       sdp: offerSdp,
       publicKeyJwk: localId.publicKeyJwk,
@@ -194,6 +216,7 @@ export class SessionManager {
       createdAt: session.createdAt,
       signingPublicKeyJwk,
       signature,
+      dhRatchetPublicKeyJwk,
     });
 
     session.transition(SessionStatus.AWAITING_ANSWER);
@@ -237,6 +260,7 @@ export class SessionManager {
         sessionId: offer.sessionId,
         createdAt: offer.createdAt,
         signingPublicKeyJwk: offer.signingPublicKeyJwk,
+        dhRatchetPublicKeyJwk: offer.dhRatchetPublicKeyJwk ?? null,
       });
       const sigBytes = decode(offer.signature);
       const valid = await this._crypto.verifyPayload(canonical, sigBytes, offer.signingPublicKeyJwk);
@@ -287,9 +311,59 @@ export class SessionManager {
     session.sharedKey = sharedKey;
 
     // Initialise per-direction ratchet chains from the shared session key.
-    if (this._crypto.deriveRatchetKeys) {
+    // If both sides exchanged DH ratchet public keys, use the full DH-based
+    // init (provides root key for future healing steps); otherwise fall back
+    // to the symmetric HMAC chain derivation.
+    const guestRatchetPub = offer.dhRatchetPublicKeyJwk ?? null;
+    const guestRatchetPriv = null; // guest's own ratchet private key is set below
+    let guestDrKp = null;
+    if (guestRatchetPub === null && this._crypto.deriveRatchetKeys) {
+      // No ratchet key in offer — symmetric-only path
       const chains = await this._crypto.deriveRatchetKeys(sharedKey, 'guest');
       if (chains) { session.sendChainKey = chains.sendChainKey; session.receiveChainKey = chains.receiveChainKey; }
+    } else if (guestRatchetPub && this._crypto.initDhRatchet) {
+      // Guest generates its own ratchet key pair BEFORE initDhRatchet.
+      guestDrKp = await this._crypto.generateDhRatchetKeyPair();
+      const chains = await this._crypto.initDhRatchet(sharedKey, guestDrKp.privateKeyJwk, offer.dhRatchetPublicKeyJwk, 'guest');
+      if (chains) {
+        session.rootKey = chains.rootKey;
+        session.sendChainKey = chains.sendChainKey;
+        session.receiveChainKey = chains.receiveChainKey;
+        session.dhRatchetPublicKeyJwk = guestDrKp.publicKeyJwk;
+        session.dhRatchetPrivateKeyJwk = guestDrKp.privateKeyJwk;
+        // Last seen remote ratchet key is the host's initial key from the invite.
+        session._lastRemoteRatchetPubKeyStr = JSON.stringify(offer.dhRatchetPublicKeyJwk);
+
+        // Initiator's first DH ratchet step (Signal-protocol "Alice sends first").
+        // Generate a new ephemeral key pair and advance the root chain once more.
+        // The new public key (advertised in message headers) is DIFFERENT from
+        // guestDrKp.publicKeyJwk (which stays in the answer for initDhRatchet).
+        // When host receives a message with the new key it triggers its own DH step
+        // — starting the self-healing forward-secrecy loop.
+        if (this._crypto.advanceRootChain) {
+          const newGuestKp = await this._crypto.generateDhRatchetKeyPair();
+          const dhOut2 = await this._crypto.dhRatchetEcdh(
+            newGuestKp.privateKeyJwk, offer.dhRatchetPublicKeyJwk,
+          );
+          const { newRootKey: root2, newChainKey: sendChain2 } =
+            await this._crypto.advanceRootChain(session.rootKey, dhOut2);
+          session.rootKey = root2;
+          session.sendChainKey = sendChain2;
+          session.sendChainIndex = 0;
+          // receiveChainKey is intentionally kept as chains.receiveChainKey
+          session.dhRatchetPublicKeyJwk = newGuestKp.publicKeyJwk;
+          session.dhRatchetPrivateKeyJwk = newGuestKp.privateKeyJwk;
+          // guestDrKp (for encodeAnswer) is intentionally NOT changed here:
+          // the answer carries the original g_pub1 so the host can run initDhRatchet.
+        }
+      } else {
+        // initDhRatchet returned null (mock adapter) — fall back to symmetric chain derivation.
+        guestDrKp = null;
+        if (this._crypto.deriveRatchetKeys) {
+          const symChains = await this._crypto.deriveRatchetKeys(sharedKey, 'guest');
+          if (symChains) { session.sendChainKey = symChains.sendChainKey; session.receiveChainKey = symChains.receiveChainKey; }
+        }
+      }
     }
 
     const answerSdp = await transport.acceptOffer(offer.sdp);
@@ -298,6 +372,7 @@ export class SessionManager {
       publicKeyJwk: localId.publicKeyJwk,
       sessionId: offer.sessionId,
       cipherText,
+      dhRatchetPublicKeyJwk: guestDrKp ? guestDrKp.publicKeyJwk : null,
     });
 
     session.transition(SessionStatus.AWAITING_FINALIZE);
@@ -358,9 +433,27 @@ export class SessionManager {
     entry.session.sharedKey = sharedKey;
 
     // Initialise ratchet chains for the host from the shared session key.
-    if (this._crypto.deriveRatchetKeys) {
+    const hostRatchetPub = answer.dhRatchetPublicKeyJwk ?? null;
+    if (!hostRatchetPub && this._crypto.deriveRatchetKeys) {
+      // No guest ratchet key in answer — symmetric-only path
       const chains = await this._crypto.deriveRatchetKeys(sharedKey, 'host');
       if (chains) { entry.session.sendChainKey = chains.sendChainKey; entry.session.receiveChainKey = chains.receiveChainKey; }
+    } else if (hostRatchetPub && this._crypto.initDhRatchet && entry.session.dhRatchetPrivateKeyJwk) {
+      // Host has its ratchet private key (stored in session) and now has guest's public key.
+      const chains = await this._crypto.initDhRatchet(
+        sharedKey, entry.session.dhRatchetPrivateKeyJwk, answer.dhRatchetPublicKeyJwk, 'host',
+      );
+      if (chains) {
+        entry.session.rootKey = chains.rootKey;
+        entry.session.sendChainKey = chains.sendChainKey;
+        entry.session.receiveChainKey = chains.receiveChainKey;
+        // Last seen remote ratchet key is the guest's initial key from the answer.
+        entry.session._lastRemoteRatchetPubKeyStr = JSON.stringify(answer.dhRatchetPublicKeyJwk);
+      } else if (this._crypto.deriveRatchetKeys) {
+        // initDhRatchet returned null (mock adapter) — fall back to symmetric chain derivation.
+        const symChains = await this._crypto.deriveRatchetKeys(sharedKey, 'host');
+        if (symChains) { entry.session.sendChainKey = symChains.sendChainKey; entry.session.receiveChainKey = symChains.receiveChainKey; }
+      }
     }
 
     await entry.transport.acceptAnswer(answer.sdp);
@@ -743,44 +836,142 @@ export class SessionManager {
   }
 
   // ── Ratchet helpers ──
-  // When deriveRatchetKeys / advanceChain are available (real crypto adapters),
-  // each message uses a fresh AES-GCM key derived by HMAC-advancing the chain.
-  // When they are not (mocked in tests), fall back to the static sharedKey so
-  // that the entire existing mock-based test suite continues to pass unchanged.
+  // DH healing layer: when _ratchetDecrypt sees a new remote ratchet public key
+  // it calls _performDhRatchetStep.  Both receive and send chains are re-derived,
+  // providing post-compromise security — an attacker who learns the current chain
+  // key loses all advantage after the next DH step.
+
+  async _performDhRatchetStep(entry, newRemoteRatchetPubKeyJwk) {
+    const s = entry.session;
+    // Step 1: ECDH(my current ratchet private key, remote's new public key)
+    const dhOut1 = await this._crypto.dhRatchetEcdh(s.dhRatchetPrivateKeyJwk, newRemoteRatchetPubKeyJwk);
+    const { newRootKey: rootAfterRecv, newChainKey: newRecvChain } =
+      await this._crypto.advanceRootChain(s.rootKey, dhOut1);
+
+    // Step 2: Generate fresh local ratchet key pair (the "step").
+    const newLocalKp = await this._crypto.generateDhRatchetKeyPair();
+
+    // Step 3: ECDH(new local key, same remote public key) → advance root again.
+    const dhOut2 = await this._crypto.dhRatchetEcdh(newLocalKp.privateKeyJwk, newRemoteRatchetPubKeyJwk);
+    const { newRootKey: rootAfterSend, newChainKey: newSendChain } =
+      await this._crypto.advanceRootChain(rootAfterRecv, dhOut2);
+
+    // Commit state updates — old private key is replaced (healing step).
+    s.rootKey = rootAfterSend;
+    s.receiveChainKey = newRecvChain;
+    s.receiveChainIndex = 0;
+    s.sendChainKey = newSendChain;
+    s.sendChainIndex = 0;
+    s.dhRatchetPublicKeyJwk = newLocalKp.publicKeyJwk;
+    s.dhRatchetPrivateKeyJwk = newLocalKp.privateKeyJwk;
+    s._lastRemoteRatchetPubKeyStr = JSON.stringify(newRemoteRatchetPubKeyJwk);
+    // Clear skipped-message-key buffer for the old chain — those keys are no
+    // longer reachable after the chain reset.
+    s.skippedMessageKeys = new Map();
+  }
 
   async _ratchetEncrypt(entry, plaintext) {
-    if (entry.session.sendChainKey && this._crypto.advanceChain) {
-      const { messageKey, nextChainKey } = await this._crypto.advanceChain(entry.session.sendChainKey);
-      entry.session.sendChainKey = nextChainKey;
+    const s = entry.session;
+    // DH ratchet path: emit versioned JSON envelope with current ratchet pub key
+    // and per-chain index so the receiver can detect key changes and skip gaps.
+    if (s.dhRatchetPublicKeyJwk && s.sendChainKey && this._crypto.advanceChain) {
+      const { messageKey, nextChainKey } = await this._crypto.advanceChain(s.sendChainKey);
+      s.sendChainKey = nextChainKey;
+      const idx = s.sendChainIndex++;
+      const ct = await this._crypto.encrypt(plaintext, messageKey);
+      return JSON.stringify({ v: 2, pk: JSON.stringify(s.dhRatchetPublicKeyJwk), n: idx, c: ct });
+    }
+    // Symmetric-ratchet path (no DH ratchet keys available).
+    if (s.sendChainKey && this._crypto.advanceChain) {
+      const { messageKey, nextChainKey } = await this._crypto.advanceChain(s.sendChainKey);
+      s.sendChainKey = nextChainKey;
       return this._crypto.encrypt(plaintext, messageKey);
     }
-    return this._crypto.encrypt(plaintext, entry.session.sharedKey);
+    return this._crypto.encrypt(plaintext, s.sharedKey);
   }
 
   async _ratchetDecrypt(entry, ciphertext) {
-    // Nonce deduplication: extract the 12-byte AES-GCM IV and reject replays.
-    // Silently skipped when ciphertext is not valid base64url (e.g. in mock tests).
+    const s = entry.session;
+    const MAX_SKIP = 100;
+
+    // ─ Attempt to parse as DH ratchet envelope (v:2) ─
+    let parsed = null;
+    try {
+      const obj = JSON.parse(ciphertext);
+      if (obj?.v === 2 && typeof obj.pk === 'string' && typeof obj.n === 'number') parsed = obj;
+    } catch { /* not a JSON envelope — fall through */ }
+
+    if (parsed) {
+      const remoteRatchetPubKeyJwk = JSON.parse(parsed.pk);
+      const remoteKeyId = parsed.pk; // stable string identity for Map keys
+      const targetN = parsed.n;
+
+      // Nonce dedup from the inner ciphertext field.
+      let nonceKey = null;
+      try {
+        const raw = decode(parsed.c);
+        if (raw.length > 12) nonceKey = encode(raw.slice(0, 12));
+      } catch { /* non-base64 in tests — skip */ }
+      if (nonceKey !== null) {
+        if (entry.seenNonces.has(nonceKey)) throw new Error('Duplicate nonce — replay rejected');
+        entry.seenNonces.add(nonceKey);
+        if (entry.seenNonces.size > 500) entry.seenNonces.delete(entry.seenNonces.values().next().value);
+      }
+
+      // Check if this is a new remote ratchet public key → DH healing step.
+      if (s.rootKey && s.dhRatchetPrivateKeyJwk &&
+          remoteKeyId !== s._lastRemoteRatchetPubKeyStr &&
+          this._crypto.dhRatchetEcdh) {
+        await this._performDhRatchetStep(entry, remoteRatchetPubKeyJwk);
+      }
+
+      // Out-of-order: look up a previously stored message key.
+      if (targetN < s.receiveChainIndex) {
+        const skipKey = `${remoteKeyId}:${targetN}`;
+        const msgKey = s.skippedMessageKeys.get(skipKey);
+        if (!msgKey) throw new Error('Ratchet message key not found (too old or already consumed)');
+        s.skippedMessageKeys.delete(skipKey);
+        return this._crypto.decrypt(parsed.c, msgKey);
+      }
+
+      // Advance the chain, buffering skipped keys for any gap.
+      if (targetN - s.receiveChainIndex > MAX_SKIP)
+        throw new Error(`Too many skipped ratchet messages: ${targetN - s.receiveChainIndex}`);
+      while (s.receiveChainIndex < targetN) {
+        const { messageKey, nextChainKey } = await this._crypto.advanceChain(s.receiveChainKey);
+        s.skippedMessageKeys.set(`${remoteKeyId}:${s.receiveChainIndex}`, messageKey);
+        s.receiveChainKey = nextChainKey;
+        s.receiveChainIndex++;
+        if (s.skippedMessageKeys.size > MAX_SKIP * 2) {
+          s.skippedMessageKeys.delete(s.skippedMessageKeys.keys().next().value);
+        }
+      }
+
+      const { messageKey, nextChainKey } = await this._crypto.advanceChain(s.receiveChainKey);
+      s.receiveChainKey = nextChainKey;
+      s.receiveChainIndex++;
+      return this._crypto.decrypt(parsed.c, messageKey);
+    }
+
+    // ─ Old-format path (symmetric ratchet or shared key) ─
+    // Nonce dedup on the raw ciphertext.
     let nonceKey = null;
     try {
       const raw = decode(ciphertext);
       if (raw.length > 12) nonceKey = encode(raw.slice(0, 12));
-    } catch {
-      // Non-base64url ciphertext (mock encrypt in tests) — no nonce to track
-    }
+    } catch { /* non-base64 in tests — skip */ }
     if (nonceKey !== null) {
       if (entry.seenNonces.has(nonceKey)) throw new Error('Duplicate nonce — replay rejected');
       entry.seenNonces.add(nonceKey);
-      // Bound to ~6 KB per session — evict oldest nonce once the cap is reached
-      if (entry.seenNonces.size > 500) {
-        entry.seenNonces.delete(entry.seenNonces.values().next().value);
-      }
+      if (entry.seenNonces.size > 500) entry.seenNonces.delete(entry.seenNonces.values().next().value);
     }
-    if (entry.session.receiveChainKey && this._crypto.advanceChain) {
-      const { messageKey, nextChainKey } = await this._crypto.advanceChain(entry.session.receiveChainKey);
-      entry.session.receiveChainKey = nextChainKey;
+
+    if (s.receiveChainKey && this._crypto.advanceChain) {
+      const { messageKey, nextChainKey } = await this._crypto.advanceChain(s.receiveChainKey);
+      s.receiveChainKey = nextChainKey;
       return this._crypto.decrypt(ciphertext, messageKey);
     }
-    return this._crypto.decrypt(ciphertext, entry.session.sharedKey);
+    return this._crypto.decrypt(ciphertext, s.sharedKey);
   }
 
   _handleControl(sessionId, action, data) {

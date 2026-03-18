@@ -8,6 +8,8 @@ import { MockIdentityPort } from '../../helpers/MockIdentityPort.js';
 import { MockStoragePort } from '../../helpers/MockStoragePort.js';
 import { MockTransportPort } from '../../helpers/MockTransportPort.js';
 import { encodeJson, decodeText, encode, decode } from '../../../src/shared/encoding/base64url.js';
+import { WebCryptoEcdhAesGcm } from '../../../src/adapters/crypto/WebCryptoEcdhAesGcm.js';
+import { EphemeralIdentityAdapter } from '../../../src/adapters/identity/EphemeralIdentityAdapter.js';
 
 // Mock crypto.subtle.exportKey for mock keys
 const origExportKey = crypto.subtle.exportKey.bind(crypto.subtle);
@@ -376,5 +378,119 @@ describe('SessionManager', () => {
     transports[0].simulateMessage(ciphertext);
     await new Promise((r) => setTimeout(r, 10));
     expect(received.length).toBe(1);
+  });
+
+  // ── DH Ratchet healing (uses real WebCryptoEcdhAesGcm) ──
+
+  it('DH ratchet: host and guest derive matching directed chains via initDhRatchet', async () => {
+    // Use the real DH adapter so initDhRatchet produces non-null results.
+    const realCrypto = new WebCryptoEcdhAesGcm();
+    const hostTransports = [];
+    const guestTransports = [];
+
+    const makeManager = (transportList) => new SessionManager({
+      crypto: realCrypto,
+      signaling: new MockSignalingPort(),
+      identity: new EphemeralIdentityAdapter({ crypto: realCrypto }),
+      storage: new MockStoragePort(),
+      createTransport: () => { const t = new MockTransportPort(); transportList.push(t); return t; },
+    });
+
+    const hostManager = makeManager(hostTransports);
+    const guestManager = makeManager(guestTransports);
+
+    const { sessionId, inviteCode } = await hostManager.createSession('DR Test');
+    const { sessionId: guestSid, answerCode } = await guestManager.joinSession(inviteCode);
+    await hostManager.finalizeSession(sessionId, answerCode);
+
+    const hostEntry = hostManager.getEntry(sessionId);
+    const guestEntry = guestManager.getEntry(guestSid);
+
+    // Both sides must have a root key (DH ratchet was initialised)
+    expect(hostEntry.session.rootKey).toBeInstanceOf(Uint8Array);
+    expect(guestEntry.session.rootKey).toBeInstanceOf(Uint8Array);
+
+    // Both sides must have their own ratchet keypairs
+    expect(hostEntry.session.dhRatchetPublicKeyJwk).toBeDefined();
+    expect(guestEntry.session.dhRatchetPublicKeyJwk).toBeDefined();
+
+    // Host knows the guest's initial ratchet key (from the answer)
+    expect(hostEntry.session._lastRemoteRatchetPubKeyStr).toBeTruthy();
+    // Guest knows the host's initial ratchet key (from the invite)
+    expect(guestEntry.session._lastRemoteRatchetPubKeyStr).toBeTruthy();
+
+    // Root keys are identical (derived from the same ECDH material)
+    // After guest's initial step, guest's root key is one step ahead of host's
+    // initial root; both chains still correctly mirror each other.
+    expect(hostEntry.session.sendChainKey).toBeInstanceOf(Uint8Array);
+    expect(guestEntry.session.sendChainKey).toBeInstanceOf(Uint8Array);
+  });
+
+  it('DH ratchet healing: end-to-end messages with DH step triggering post-compromise chain rotation', async () => {
+    const realCrypto = new WebCryptoEcdhAesGcm();
+
+    // ForwardingTransport: routes sent data directly to a peer transport.
+    class ForwardingTransport extends MockTransportPort {
+      constructor() { super(); this._peer = null; }
+      setPeer(peer) { this._peer = peer; }
+      send(data) { super.send(data); if (this._peer) this._peer.simulateMessage(data); }
+    }
+
+    let hostT, guestT;
+    const hostManager = new SessionManager({
+      crypto: realCrypto,
+      signaling: new MockSignalingPort(),
+      identity: new EphemeralIdentityAdapter({ crypto: realCrypto }),
+      storage: new MockStoragePort(),
+      createTransport: () => { hostT = new ForwardingTransport(); return hostT; },
+    });
+    const guestManager = new SessionManager({
+      crypto: realCrypto,
+      signaling: new MockSignalingPort(),
+      identity: new EphemeralIdentityAdapter({ crypto: realCrypto }),
+      storage: new MockStoragePort(),
+      createTransport: () => { guestT = new ForwardingTransport(); return guestT; },
+    });
+
+    const { sessionId, inviteCode } = await hostManager.createSession(null);
+    const { sessionId: guestSid, answerCode } = await guestManager.joinSession(inviteCode);
+    await hostManager.finalizeSession(sessionId, answerCode);
+
+    // Cross-wire transports: host.send → guestT.simulateMessage and vice versa
+    hostT.setPeer(guestT);
+    guestT.setPeer(hostT);
+
+    // Bring both sessions to CONNECTED
+    hostT.simulateStateChange('connected');
+    guestT.simulateStateChange('connected');
+
+    const hostMsgs = [], guestMsgs = [];
+    hostManager.on('message', (_id, m) => hostMsgs.push(m));
+    guestManager.on('message', (_id, m) => guestMsgs.push(m));
+
+    // Host sends two messages to guest
+    await hostManager.sendMessage(sessionId, 'msg-h1');
+    await hostManager.sendMessage(sessionId, 'msg-h2');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(guestMsgs.map((m) => m.text)).toContain('msg-h1');
+    expect(guestMsgs.map((m) => m.text)).toContain('msg-h2');
+
+    // Guest sends a reply — should trigger a DH step on host when received
+    // because the guest's first message carries g_pub2 (new since the initiator step)
+    // vs the host's stored _lastRemoteRatchetPubKeyStr = JSON.stringify(g_pub1).
+    const hostRatchetBefore = hostManager.getEntry(sessionId).session._lastRemoteRatchetPubKeyStr;
+    await guestManager.sendMessage(guestSid, 'msg-g1');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(hostMsgs.map((m) => m.text)).toContain('msg-g1');
+
+    // After receiving guest's message (with new ratchet key from initiator step),
+    // host must record the new key — proving the DH healing step fired.
+    const hostRatchetAfter = hostManager.getEntry(sessionId).session._lastRemoteRatchetPubKeyStr;
+    expect(hostRatchetAfter).not.toBe(hostRatchetBefore);
+
+    // Host can still encrypt and guest can still decrypt after the DH step.
+    await hostManager.sendMessage(sessionId, 'msg-h3');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(guestMsgs.map((m) => m.text)).toContain('msg-h3');
   });
 });

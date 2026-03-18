@@ -1,7 +1,7 @@
 import { ISignalingPort } from '../../src/core/ports/ISignalingPort.js';
 
 export class MockSignalingPort extends ISignalingPort {
-  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, signingPublicKeyJwk, signature }) {
+  encodeOffer({ sdp, publicKeyJwk, sessionId, createdAt, signingPublicKeyJwk, signature, dhRatchetPublicKeyJwk }) {
     return JSON.stringify({
       type: 'offer',
       sdp,
@@ -10,6 +10,7 @@ export class MockSignalingPort extends ISignalingPort {
       createdAt,
       signingPublicKeyJwk: signingPublicKeyJwk ?? null,
       signature: signature ?? null,
+      dhRatchetPublicKeyJwk: dhRatchetPublicKeyJwk ?? null,
     });
   }
 
@@ -22,11 +23,12 @@ export class MockSignalingPort extends ISignalingPort {
       createdAt: data.createdAt,
       signingPublicKeyJwk: data.signingPublicKeyJwk ?? null,
       signature: data.signature ?? null,
+      dhRatchetPublicKeyJwk: data.dhRatchetPublicKeyJwk ?? null,
     };
   }
 
-  encodeAnswer({ sdp, publicKeyJwk, sessionId }) {
-    return JSON.stringify({ type: 'answer', sdp, publicKeyJwk, sessionId });
+  encodeAnswer({ sdp, publicKeyJwk, sessionId, dhRatchetPublicKeyJwk }) {
+    return JSON.stringify({ type: 'answer', sdp, publicKeyJwk, sessionId, dhRatchetPublicKeyJwk: dhRatchetPublicKeyJwk ?? null });
   }
 
   decodeAnswer(encoded) {
@@ -35,6 +37,7 @@ export class MockSignalingPort extends ISignalingPort {
       sdp: data.sdp,
       publicKeyJwk: data.publicKeyJwk,
       sessionId: data.sessionId,
+      dhRatchetPublicKeyJwk: data.dhRatchetPublicKeyJwk ?? null,
     };
   }
 }

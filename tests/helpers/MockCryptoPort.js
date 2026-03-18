@@ -85,4 +85,31 @@ export class MockCryptoPort extends ICryptoPort {
   // Ratchet stubs — return null to trigger fallback to sharedKey in SessionManager
   async deriveRatchetKeys(_sharedKey, _role) { return null; }
   async advanceChain(_chainKey) { return null; }
+
+  // DH ratchet stubs — return deterministic mock values so SessionManager can
+  // exercise the DH ratchet code paths in unit tests without real WebCrypto.
+  async generateDhRatchetKeyPair() {
+    const id = ++counter;
+    return {
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: `mock_dr_x_${id}`, y: `mock_dr_y_${id}` },
+      privateKeyJwk: { kty: 'EC', crv: 'P-256', d: `mock_dr_d_${id}`, x: `mock_dr_x_${id}`, y: `mock_dr_y_${id}` },
+    };
+  }
+
+  async dhRatchetEcdh(_myPrivKeyJwk, _theirPubKeyJwk) {
+    return new Uint8Array(32); // 32-byte zero output
+  }
+
+  async advanceRootChain(_rootKeyBytes, _dhOutput) {
+    return {
+      newRootKey: new Uint8Array(32).fill(0x01),
+      newChainKey: new Uint8Array(32).fill(0x02),
+    };
+  }
+
+  // Returns null so SessionManager falls through to the symmetric-chain/sharedKey path;
+  // dedicated DH ratchet integration tests use the real adapters.
+  async initDhRatchet(_sharedKey, _myRatchetPrivKeyJwk, _remoteRatchetPubKeyJwk, _role) {
+    return null;
+  }
 }

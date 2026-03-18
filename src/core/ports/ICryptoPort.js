@@ -102,4 +102,43 @@ export class ICryptoPort {
   async advanceChain(chainKeyBytes) {
     throw new Error('Not implemented');
   }
+
+  /**
+   * Generate an ephemeral P-256 ECDH key pair for the DH ratchet.
+   * Both public and private keys are exported as JWK (extractable) so they can
+   * be stored in session state and rotated after each ratchet step.
+   * @returns {Promise<{publicKeyJwk: object, privateKeyJwk: object}>}
+   */
+  async generateDhRatchetKeyPair() {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Perform a single ECDH exchange between local ratchet private key and remote
+   * ratchet public key.  Returns the raw 32-byte X coordinate (P-256 shared secret).
+   * @returns {Promise<Uint8Array>}
+   */
+  async dhRatchetEcdh(myPrivKeyJwk, theirPubKeyJwk) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Advance the root chain using a DH output.  Implements:
+   *   HKDF(IKM=dhOutput, salt=rootKeyBytes, info="DR-root-v1") → 64 bytes
+   * split into (newRootKey[0..32], newChainKey[32..64]).
+   * @returns {Promise<{newRootKey: Uint8Array, newChainKey: Uint8Array}>}
+   */
+  async advanceRootChain(rootKeyBytes, dhOutput) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Derive the initial root key and directed chain keys from the XWing shared
+   * secret combined with a DH ratchet exchange.  Replaces deriveRatchetKeys
+   * when both parties have exchanged their initial ratchet public keys.
+   * @returns {Promise<{rootKey: Uint8Array, sendChainKey: Uint8Array, receiveChainKey: Uint8Array}>}
+   */
+  async initDhRatchet(sharedKey, myRatchetPrivKeyJwk, remoteRatchetPubKeyJwk, role) {
+    throw new Error('Not implemented');
+  }
 }

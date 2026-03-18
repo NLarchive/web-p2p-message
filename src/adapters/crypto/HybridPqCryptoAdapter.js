@@ -255,6 +255,87 @@ export class HybridPqCryptoAdapter extends ICryptoPort {
 		}
 	}
 
+	async generateDhRatchetKeyPair() {
+		try {
+			const kp = await crypto.subtle.generateKey(
+				{ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'],
+			);
+			const pubJwk = await crypto.subtle.exportKey('jwk', kp.publicKey);
+			const privJwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+			// Strip key_ops / ext — only kty/crv/x/y needed for public
+			return {
+				publicKeyJwk: { kty: pubJwk.kty, crv: pubJwk.crv, x: pubJwk.x, y: pubJwk.y },
+				privateKeyJwk: privJwk,
+			};
+		} catch (e) {
+			throw new CryptoError(`DH ratchet key generation failed: ${e.message}`);
+		}
+	}
+
+	async dhRatchetEcdh(myPrivKeyJwk, theirPubKeyJwk) {
+		try {
+			const priv = await crypto.subtle.importKey(
+				'jwk', myPrivKeyJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits'],
+			);
+			const pub = await crypto.subtle.importKey(
+				'jwk', theirPubKeyJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, [],
+			);
+			const bits = await crypto.subtle.deriveBits(
+				{ name: 'ECDH', public: pub }, priv, 256,
+			);
+			return new Uint8Array(bits);
+		} catch (e) {
+			throw new CryptoError(`DH ratchet ECDH failed: ${e.message}`);
+		}
+	}
+
+	async advanceRootChain(rootKeyBytes, dhOutput) {
+		try {
+			const hkdfKey = await crypto.subtle.importKey('raw', dhOutput, 'HKDF', false, ['deriveBits']);
+			const bits = await crypto.subtle.deriveBits(
+				{ name: 'HKDF', hash: 'SHA-256', salt: rootKeyBytes, info: new TextEncoder().encode('DR-root-v1') },
+				hkdfKey, 512,
+			);
+			const all = new Uint8Array(bits);
+			return { newRootKey: all.slice(0, 32), newChainKey: all.slice(32, 64) };
+		} catch (e) {
+			throw new CryptoError(`Root chain advancement failed: ${e.message}`);
+		}
+	}
+
+	async initDhRatchet(sharedKey, myRatchetPrivKeyJwk, remoteRatchetPubKeyJwk, role) {
+		try {
+			const sharedKeyBytes = new Uint8Array(await crypto.subtle.exportKey('raw', sharedKey));
+			const dhOut = await this.dhRatchetEcdh(myRatchetPrivKeyJwk, remoteRatchetPubKeyJwk);
+			const hkdfKey = await crypto.subtle.importKey('raw', dhOut, 'HKDF', false, ['deriveBits']);
+			const enc = new TextEncoder();
+			const [rootBits, aBits, bBits] = await Promise.all([
+				crypto.subtle.deriveBits(
+					{ name: 'HKDF', hash: 'SHA-256', salt: sharedKeyBytes, info: enc.encode('DR-init-root') },
+					hkdfKey, 256,
+				),
+				crypto.subtle.deriveBits(
+					{ name: 'HKDF', hash: 'SHA-256', salt: sharedKeyBytes, info: enc.encode('chain:host->guest') },
+					hkdfKey, 256,
+				),
+				crypto.subtle.deriveBits(
+					{ name: 'HKDF', hash: 'SHA-256', salt: sharedKeyBytes, info: enc.encode('chain:guest->host') },
+					hkdfKey, 256,
+				),
+			]);
+			const rootKey = new Uint8Array(rootBits);
+			const chainAB = new Uint8Array(aBits); // host→guest
+			const chainBA = new Uint8Array(bBits); // guest→host
+			return {
+				rootKey,
+				sendChainKey: role === 'host' ? chainAB : chainBA,
+				receiveChainKey: role === 'host' ? chainBA : chainAB,
+			};
+		} catch (e) {
+			throw new CryptoError(`DH ratchet initialisation failed: ${e.message}`);
+		}
+	}
+
 	async _importAesKey(rawKey) {
 		return crypto.subtle.importKey(
 			'raw',

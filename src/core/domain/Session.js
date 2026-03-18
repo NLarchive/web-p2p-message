@@ -60,6 +60,14 @@ export class Session {
     this.sharedKey = null;
     this.sendChainKey = null;    // Uint8Array — ratchet send chain
     this.receiveChainKey = null; // Uint8Array — ratchet receive chain
+    // DH ratchet state (Double Ratchet healing layer)
+    this.rootKey = null;                     // Uint8Array — current root chain key
+    this.dhRatchetPublicKeyJwk = null;       // JWK — our current ratchet public key (sent in headers)
+    this.dhRatchetPrivateKeyJwk = null;      // JWK — our current ratchet private key
+    this._lastRemoteRatchetPubKeyStr = null; // JSON string of last seen remote ratchet pub key
+    this.sendChainIndex = 0;                 // position in current send chain (per-step counter)
+    this.receiveChainIndex = 0;              // position in current receive chain
+    this.skippedMessageKeys = new Map();     // out-of-order buffer: "pkStr:idx" → CryptoKey
     this.messageCounter = 0;
     this._lastReceivedCounter = 0;
     this.errorReason = null;
@@ -138,6 +146,13 @@ export class Session {
       privateKeyJwk: privateKeyJwk ?? null,
       sendChainKey: this.sendChainKey ? encode(this.sendChainKey) : null,
       receiveChainKey: this.receiveChainKey ? encode(this.receiveChainKey) : null,
+      rootKey: this.rootKey ? encode(this.rootKey) : null,
+      dhRatchetPublicKeyJwk: this.dhRatchetPublicKeyJwk ?? null,
+      dhRatchetPrivateKeyJwk: this.dhRatchetPrivateKeyJwk ?? null,
+      lastRemoteRatchetPubKeyStr: this._lastRemoteRatchetPubKeyStr ?? null,
+      sendChainIndex: this.sendChainIndex,
+      receiveChainIndex: this.receiveChainIndex,
+      // skippedMessageKeys contains CryptoKey objects — not serialisable; lost on reload (acceptable)
     };
   }
 
@@ -159,6 +174,12 @@ export class Session {
     session._lastReceivedCounter = data.lastReceivedCounter ?? 0;
     if (data.sendChainKey) session.sendChainKey = decode(data.sendChainKey);
     if (data.receiveChainKey) session.receiveChainKey = decode(data.receiveChainKey);
+    if (data.rootKey) session.rootKey = decode(data.rootKey);
+    if (data.dhRatchetPublicKeyJwk) session.dhRatchetPublicKeyJwk = data.dhRatchetPublicKeyJwk;
+    if (data.dhRatchetPrivateKeyJwk) session.dhRatchetPrivateKeyJwk = data.dhRatchetPrivateKeyJwk;
+    if (data.lastRemoteRatchetPubKeyStr) session._lastRemoteRatchetPubKeyStr = data.lastRemoteRatchetPubKeyStr;
+    session.sendChainIndex = data.sendChainIndex ?? 0;
+    session.receiveChainIndex = data.receiveChainIndex ?? 0;
     if (data.localIdentity) {
       session.localIdentity = PeerIdentity.fromJSON(data.localIdentity);
     }

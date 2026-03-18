@@ -219,4 +219,102 @@ describe('WebCryptoEcdhAesGcm', () => {
     );
     expect(fpA).not.toBe(fpB);
   });
+
+  // ── DH Ratchet (Double Ratchet healing layer) ──
+
+  it('generateDhRatchetKeyPair returns exportable P-256 JWK pair', async () => {
+    const kp = await adapter.generateDhRatchetKeyPair();
+    expect(kp.publicKeyJwk.kty).toBe('EC');
+    expect(kp.publicKeyJwk.crv).toBe('P-256');
+    expect(kp.publicKeyJwk.x).toBeDefined();
+    expect(kp.publicKeyJwk.y).toBeDefined();
+    // Public JWK must NOT contain the private scalar
+    expect(kp.publicKeyJwk.d).toBeUndefined();
+    // Private JWK must contain the scalar
+    expect(kp.privateKeyJwk.d).toBeDefined();
+  });
+
+  it('dhRatchetEcdh is symmetric (both sides compute the same secret)', async () => {
+    const kpA = await adapter.generateDhRatchetKeyPair();
+    const kpB = await adapter.generateDhRatchetKeyPair();
+    const outAB = await adapter.dhRatchetEcdh(kpA.privateKeyJwk, kpB.publicKeyJwk);
+    const outBA = await adapter.dhRatchetEcdh(kpB.privateKeyJwk, kpA.publicKeyJwk);
+    expect(outAB).toBeInstanceOf(Uint8Array);
+    expect(outAB.byteLength).toBe(32);
+    expect(outAB).toEqual(outBA);
+  });
+
+  it('advanceRootChain produces 32-byte root and chain keys', async () => {
+    const root = crypto.getRandomValues(new Uint8Array(32));
+    const dhOut = crypto.getRandomValues(new Uint8Array(32));
+    const result = await adapter.advanceRootChain(root, dhOut);
+    expect(result.newRootKey).toBeInstanceOf(Uint8Array);
+    expect(result.newRootKey.byteLength).toBe(32);
+    expect(result.newChainKey).toBeInstanceOf(Uint8Array);
+    expect(result.newChainKey.byteLength).toBe(32);
+    // Different DH outputs → different chain keys
+    const dhOut2 = crypto.getRandomValues(new Uint8Array(32));
+    const result2 = await adapter.advanceRootChain(root, dhOut2);
+    expect(result2.newRootKey).not.toEqual(result.newRootKey);
+    expect(result2.newChainKey).not.toEqual(result.newChainKey);
+  });
+
+  it('initDhRatchet derives matching directed chains for host and guest', async () => {
+    const kpA = await adapter.generateKeyPair();
+    const kpB = await adapter.generateKeyPair();
+    const pubA = await adapter.importPublicKey(await adapter.exportPublicKey(kpA.publicKey));
+    const pubB = await adapter.importPublicKey(await adapter.exportPublicKey(kpB.publicKey));
+    const sharedAB = await adapter.deriveSharedKey(kpA.privateKey, pubB);
+    const sharedBA = await adapter.deriveSharedKey(kpB.privateKey, pubA);
+
+    // Each side generates its own ratchet key pair
+    const ratchetH = await adapter.generateDhRatchetKeyPair();
+    const ratchetG = await adapter.generateDhRatchetKeyPair();
+
+    // Both sides call initDhRatchet; ECDH is symmetric so they derive the same material
+    const hostChains = await adapter.initDhRatchet(sharedAB, ratchetH.privateKeyJwk, ratchetG.publicKeyJwk, 'host');
+    const guestChains = await adapter.initDhRatchet(sharedBA, ratchetG.privateKeyJwk, ratchetH.publicKeyJwk, 'guest');
+
+    expect(hostChains.rootKey).toBeInstanceOf(Uint8Array);
+    // Directed chains must be opposite for host and guest
+    expect(hostChains.sendChainKey).toEqual(guestChains.receiveChainKey);
+    expect(hostChains.receiveChainKey).toEqual(guestChains.sendChainKey);
+    // Root keys are identical (both derived the same root)
+    expect(hostChains.rootKey).toEqual(guestChains.rootKey);
+  });
+
+  it('DH ratchet step provides post-compromise security (new chains after step)', async () => {
+    // Build an initial shared state
+    const kpA = await adapter.generateKeyPair();
+    const kpB = await adapter.generateKeyPair();
+    const pubA = await adapter.importPublicKey(await adapter.exportPublicKey(kpA.publicKey));
+    const pubB = await adapter.importPublicKey(await adapter.exportPublicKey(kpB.publicKey));
+    const sharedAB = await adapter.deriveSharedKey(kpA.privateKey, pubB);
+    const sharedBA = await adapter.deriveSharedKey(kpB.privateKey, pubA);
+
+    const ratchetA = await adapter.generateDhRatchetKeyPair();
+    const ratchetB = await adapter.generateDhRatchetKeyPair();
+    const { rootKey } = await adapter.initDhRatchet(sharedAB, ratchetA.privateKeyJwk, ratchetB.publicKeyJwk, 'host');
+
+    // Simulate a DH ratchet step: A receives a NEW ratchet key from B
+    const ratchetB2 = await adapter.generateDhRatchetKeyPair();
+    const dhOut1 = await adapter.dhRatchetEcdh(ratchetA.privateKeyJwk, ratchetB2.publicKeyJwk);
+    const { newRootKey: root2, newChainKey: recvChain } = await adapter.advanceRootChain(rootKey, dhOut1);
+
+    // A generates a new local key pair and advances root chain again for sending
+    const ratchetA2 = await adapter.generateDhRatchetKeyPair();
+    const dhOut2 = await adapter.dhRatchetEcdh(ratchetA2.privateKeyJwk, ratchetB2.publicKeyJwk);
+    const { newRootKey: root3, newChainKey: sendChain } = await adapter.advanceRootChain(root2, dhOut2);
+
+    // All three roots and chains must be different (each step advances state)
+    expect(root2).not.toEqual(rootKey);
+    expect(root3).not.toEqual(root2);
+    expect(sendChain).not.toEqual(recvChain);
+
+    // The recv chain is usable for decryption: B can derive the matching send chain
+    // B does the corresponding step: ECDH(ratchetB2.priv, ratchetA2.pub) → same output as A's dhOut2
+    const dhOutB = await adapter.dhRatchetEcdh(ratchetB2.privateKeyJwk, ratchetA2.publicKeyJwk);
+    const { newChainKey: bSendChain } = await adapter.advanceRootChain(root2, dhOutB);
+    expect(bSendChain).toEqual(sendChain); // A's send chain == B's derived recv chain
+  });
 });
