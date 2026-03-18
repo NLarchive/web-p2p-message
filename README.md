@@ -35,9 +35,9 @@ Build a secure P2P chat where:
 - Transport: WebRTC data channels
 - MVP signaling: manual code or link exchange, no owned server required
 - Local-only sync: BroadcastChannel for same-origin tabs when useful
-- Encryption: WebCrypto with ephemeral session keys and AES-GCM
-- Security verification: peer fingerprint comparison in the UI
-- Post-quantum path: keep the crypto adapter replaceable so a hybrid PQ handshake can be added later
+- Encryption: WebCrypto with ephemeral session keys and AES-GCM for application-layer E2EE
+- Post-quantum handshake: Hybrid XWing (ML-KEM-768 + X25519) fully implemented; crypto adapter remains replaceable
+- Security verification: peer fingerprint comparison in the UI; CSP meta tag with importmap SHA-256 hash
 
 ## Why This Direction
 
@@ -54,10 +54,10 @@ This path keeps the first implementation small and understandable while preservi
 - create a host session and generate an invite code
 - join a session using that invite code
 - generate and exchange a manual answer code
-- derive a shared encryption key with WebCrypto ECDH
-- exchange encrypted one-to-one messages over WebRTC DataChannels
+- derive a shared encryption key with hybrid post-quantum handshake (XWing) or WebCrypto ECDH
+- exchange encrypted one-to-one messages over WebRTC DataChannels using AES-GCM
 - compare peer fingerprints in the UI
-- run automated unit, adapter, use case, and integration tests
+- run comprehensive automated test suite (unit, E2E, security interceptor)
 
 ## Planned Repository Structure
 
@@ -122,14 +122,32 @@ https://nlarchive.github.io/web-p2p-message/
 
 ## Testing
 
-The automated suite currently covers:
+Three-layer automated test suite:
 
+**Unit & Integration (120 tests via Vitest):**
 - domain rules and state transitions
 - encoding and validation helpers
 - crypto, signaling, storage, and identity adapters
 - use case orchestration
-- end-to-end host and guest flow with mocks
-- static build smoke verification
+- encrypted end-to-end flow
+
+**End-to-End (Playwright):**
+- complete host and guest chat flow
+- WebRTC connection establishment
+- message encryption and delivery
+
+**Security Interceptor Suite (8 attack techniques):**
+- payload analysis (forbidden key fields: `seed`, `d`, nested objects)
+- crypto brute-force (key length analysis)
+- MITM tampering (hybrid XWing key corruption)
+- replay attack resistant (timestamp + counter validation)
+- session hijack (IDB key non-extractability verification)
+- invite expiry manipulation (Infinity, future timestamps rejected)
+- downgrade attack (algorithm substitution rejection)
+- envelope fuzzing (JSON parsing robustness)
+
+**Build Verification:**
+- static artifact smoke test
 
 ## Documentation
 
@@ -154,8 +172,8 @@ Deferred until after MVP:
 - group chat
 - offline mesh replication across many peers
 - full CRDT sync engine
-- production-ready post-quantum cryptography
-- public signaling adapter integrations
+- per-message key ratcheting (Double Ratchet protocol)
+- public signaling adapter integrations (WebTorrent, Nostr, Matrix)
 
 ## Delivery Tracking
 
@@ -163,10 +181,20 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 
 ## Known Limitations
 
-- manual signaling requires copying codes between peers
-- the current UI is optimized for one-to-one chat only
-- browser interoperability testing is still narrower than a full public release matrix
-- post-quantum cryptography is not implemented in the MVP
+- manual signaling requires copying codes between peers (trade-off for zero-server architecture)
+- one-to-one chat only (no group support)
+- browser interoperability testing is narrower than production standards
+- post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
+- uses per-session keys rather than per-message ratcheting (weaker forward secrecy than Signal's Double Ratchet)
+- timestamp and counter validation hardened but invite payloads remain unsigned (HMAC signature would prevent MITM timestamp revival)
+
+## Recent Security Fixes (Current)
+
+- **Timestamp validation:** rejects Infinity, non-finite values, and future timestamps beyond 30s clock skew
+- **Counter validation:** rejects non-finite counters, values ≤ last received, and jumps >10,000 (DoS hardening)
+- **Forbidden key fields:** expanded checks for private key material (`seed` for XWing, `d` for ECDH) including nested objects
+- **CSP hardening:** meta tag includes `sha256-...` hash for importmap script
+- **Branch sync:** `main` and `master` now point to identical commits; older GitHub file views showed stale `master` until force-push
 
 ## Notes
 
