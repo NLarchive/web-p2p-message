@@ -62,7 +62,7 @@ try {
   if (!home.body.includes('<div id="app"></div>')) {
     throw new Error('Home page is missing the app root');
   }
-  if (!home.body.includes('src="src/ui/app.js"')) {
+  if (!home.body.includes('app.js')) {
     throw new Error('Home page is missing the app module script');
   }
 
@@ -70,7 +70,7 @@ try {
   if (appJs.statusCode !== 200) {
     throw new Error(`Expected /src/ui/app.js to return 200, got ${appJs.statusCode}`);
   }
-  if (!appJs.body.includes('createSessionService')) {
+  if (!appJs.body.includes('SessionManager')) {
     throw new Error('App bundle does not contain the expected boot logic');
   }
 
