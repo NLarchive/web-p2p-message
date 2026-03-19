@@ -49,16 +49,21 @@ function showError(msg) { showToast(msg, 'error'); }
 function showSuccess(msg) { showToast(msg, 'success', 2500); }
 
 // ── Network privacy detection ──
-// Detects whether WebRTC is disabled (Tor Browser) by attempting a quick local
-// ICE candidate gather without any STUN servers. If RTCPeerConnection is
-// unavailable or gathering yields zero candidates, the user is likely behind
-// Tor Browser. No external fetch is made — fully local and IP-blind.
-let _privacyStatus = null; // null = unchecked | 'tor-browser' | 'webrtc-available' | 'unknown'
+// Probes whether WebRTC ICE gathering works and whether the user is on a
+// private network (VPN/Tor). No external fetch is made — fully local and IP-blind.
+// Possible statuses: 'local-dev' | 'tor-browser' | 'vpn-or-private' | 'webrtc-available' | 'unknown'
+let _privacyStatus = null;
+
+function _isLocalDev() {
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '[::1]' || h.endsWith('.local');
+}
 
 async function detectNetworkPrivacy() {
   if (_privacyStatus !== null) return _privacyStatus;
   try {
     if (typeof RTCPeerConnection === 'undefined') {
+      // RTCPeerConnection removed from global — Tor Browser or explicitly disabled
       _privacyStatus = 'tor-browser';
       return _privacyStatus;
     }
@@ -66,9 +71,8 @@ async function detectNetworkPrivacy() {
     pc.createDataChannel('probe');
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    // If WebRTC is blocked (Tor Browser) gathering completes instantly with empty candidates
     const hasCandidates = await new Promise((resolve) => {
-      const timer = setTimeout(() => { pc.close(); resolve(false); }, 2000);
+      const timer = setTimeout(() => { pc.close(); resolve(false); }, 2500);
       pc.onicecandidate = (e) => {
         if (e.candidate) { clearTimeout(timer); pc.close(); resolve(true); }
       };
@@ -76,9 +80,17 @@ async function detectNetworkPrivacy() {
         if (pc.iceGatheringState === 'complete') { clearTimeout(timer); pc.close(); resolve(false); }
       };
     });
-    _privacyStatus = hasCandidates ? 'webrtc-available' : 'tor-browser';
+    if (hasCandidates) {
+      _privacyStatus = 'webrtc-available';
+    } else if (_isLocalDev()) {
+      // On localhost, no external-IP candidates is normal (loopback-only env or VPN)
+      _privacyStatus = 'local-dev';
+    } else {
+      // Deployed site + zero candidates = Tor Browser or WebRTC policy block
+      _privacyStatus = 'tor-browser';
+    }
   } catch {
-    _privacyStatus = 'unknown';
+    _privacyStatus = _isLocalDev() ? 'local-dev' : 'unknown';
   }
   return _privacyStatus;
 }
@@ -200,13 +212,17 @@ function showSessionList() {
     detectNetworkPrivacy().then((status) => {
       if (!privacyEl.isConnected) return;
       if (status === 'tor-browser') {
-        privacyEl.textContent = '🧅 Tor Browser detected — WebRTC is disabled; real IP hidden';
+        // Only the synchronous HAS_WEBRTC=false case disables buttons.
+        // The async probe sets the label; if RTCPeerConnection is defined the user
+        // may still be able to connect (e.g. Firefox with strict privacy prefs).
+        privacyEl.textContent = '🧅 WebRTC blocked — real IP hidden (Tor Browser or privacy policy)';
         privacyEl.className = 'privacy-status privacy-tor';
-        // Async probe confirmed Tor: disable connection buttons even if HAS_WEBRTC was true
-        const btnCreate = document.getElementById('btn-create');
-        const btnJoin = document.getElementById('btn-join');
-        if (btnCreate) btnCreate.disabled = true;
-        if (btnJoin) btnJoin.disabled = true;
+      } else if (status === 'vpn-or-private') {
+        privacyEl.textContent = '🔒 VPN or private network detected — IP not exposed';
+        privacyEl.className = 'privacy-status privacy-unknown';
+      } else if (status === 'local-dev') {
+        privacyEl.textContent = '🖥️ Local development — no external IP exposed';
+        privacyEl.className = 'privacy-status privacy-unknown';
       } else if (status === 'webrtc-available') {
         privacyEl.innerHTML = `⚠️ WebRTC active — peer can see your IP. Use <a href="https://www.torproject.org/" target="_blank" rel="noopener noreferrer">Tor</a> or a <a href="https://duckduckgo.com/?q=VPN" target="_blank" rel="noopener noreferrer">VPN</a> for IP privacy.`;
         privacyEl.className = 'privacy-status privacy-direct';
