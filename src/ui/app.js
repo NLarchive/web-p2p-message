@@ -9,6 +9,44 @@ const SOURCE_URL = 'https://github.com/NLarchive/web-p2p-message';
 let manager;
 let activeSessionId = null;
 
+// ── Toast notification system ──
+// Replaces the static <p id="error"> pattern with ephemeral toasts that
+// auto-dismiss and stack correctly without requiring an in-DOM anchor.
+
+let _toastContainer = null;
+
+function getToastContainer() {
+  if (!_toastContainer) {
+    _toastContainer = document.createElement('div');
+    _toastContainer.className = 'toast-container';
+    document.body.appendChild(_toastContainer);
+  }
+  return _toastContainer;
+}
+
+function showToast(msg, type = 'error', durationMs = 4000) {
+  const container = getToastContainer();
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = msg;
+  // Close on click
+  toast.addEventListener('click', () => dismissToast(toast));
+  container.appendChild(toast);
+  // Trigger enter animation
+  requestAnimationFrame(() => toast.classList.add('toast-visible'));
+  if (durationMs > 0) setTimeout(() => dismissToast(toast), durationMs);
+  return toast;
+}
+
+function dismissToast(toastEl) {
+  toastEl.classList.remove('toast-visible');
+  toastEl.addEventListener('transitionend', () => toastEl.remove(), { once: true });
+}
+
+// Keep backwards compat for call sites that used showError
+function showError(msg) { showToast(msg, 'error'); }
+function showSuccess(msg) { showToast(msg, 'success', 2500); }
+
 // ── Helpers ──
 
 function render(html) {
@@ -22,9 +60,17 @@ function render(html) {
   `;
 }
 
-function showError(msg) {
-  const el = document.getElementById('error');
-  if (el) el.textContent = msg;
+// copyToClipboard: writes text and toggles button label briefly.
+function copyToClipboard(text, btn, label = 'Copy') {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = original || label; btn.disabled = false; }, 2000);
+    }
+    showSuccess('Copied to clipboard');
+  }).catch(() => showError('Clipboard write failed'));
 }
 
 function escapeHtml(str) {
@@ -58,7 +104,6 @@ function statusLabel(status) {
 function showSessionList() {
   activeSessionId = null;
   const sessions = manager.getSessions();
-
   const sessionCards = sessions
     .map((s) => {
       const indicator = statusIndicator(s.status);
@@ -86,15 +131,36 @@ function showSessionList() {
     })
     .join('');
 
+  const hasMultiple = sessions.length > 1;
+
   render(`
     <h1>P2P Message</h1>
     <h2>Encrypted peer-to-peer chat</h2>
-    ${sessions.length > 0 ? `<div class="session-list">${sessionCards}</div>` : '<p class="status mb">No sessions yet. Create or join a chat.</p>'}
+    ${hasMultiple ? `<div class="search-bar-wrap"><input type="text" id="session-search" class="session-search" placeholder="Search sessions…" autocomplete="off" /></div>` : ''}
+    ${sessions.length > 0 ? `<div class="session-list" id="session-list">${sessionCards}</div>` : '<p class="status mb">No sessions yet. Create or join a chat.</p>'}
     <div class="actions" style="margin-top:1.5rem">
       <button id="btn-create">New Chat (Host)</button>
       <button id="btn-join" class="btn-outline">Join Chat</button>
     </div>
   `);
+
+  // Live DOM-filter search (no full re-render)
+  const searchInput = document.getElementById('session-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase();
+      document.querySelectorAll('#session-list .session-card').forEach((card) => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input'));
+      }
+    });
+  }
 
   // Bind events
   $('#btn-create').addEventListener('click', showCreateForm);
@@ -197,8 +263,7 @@ function showInviteCode(sessionId, inviteCode) {
     </div>
   `);
   $('#btn-copy').addEventListener('click', () => {
-    navigator.clipboard.writeText(inviteCode);
-    $('#btn-copy').textContent = 'Copied!';
+    copyToClipboard(inviteCode, $('#btn-copy'));
   });
   $('#btn-finalize').addEventListener('click', () => handleFinalize(sessionId));
   $('#btn-back').addEventListener('click', showSessionList);
@@ -235,8 +300,7 @@ function showHostWaiting(sessionId) {
   `);
   if ($('#btn-copy')) {
     $('#btn-copy').addEventListener('click', () => {
-      navigator.clipboard.writeText(inviteCode);
-      $('#btn-copy').textContent = 'Copied!';
+      copyToClipboard(inviteCode, $('#btn-copy'));
     });
   }
   $('#btn-finalize').addEventListener('click', () => handleFinalize(sessionId));
@@ -251,8 +315,10 @@ async function handleFinalize(sessionId) {
     if (!answerCode) {
       if (btn) { btn.disabled = false; btn.textContent = 'Connect'; }
       return showError('Paste the answer code first');
-    }
-    await manager.finalizeSession(sessionId, answerCode);
+    }    if (answerCode.length < 10) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Connect'; }
+      return showError('Answer code looks too short — did you paste the full code?');
+    }    await manager.finalizeSession(sessionId, answerCode);
     activeSessionId = sessionId;
     // Transport listener will fire 'update' when connected → showChat
   } catch (e) {
@@ -287,6 +353,10 @@ async function handleJoin() {
       if (btn) { btn.disabled = false; btn.textContent = 'Accept Invite'; }
       return showError('Paste the invite code first');
     }
+    if (inviteCode.length < 10) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Accept Invite'; }
+      return showError('Invite code looks too short — did you paste the full code?');
+    }
     const { sessionId, answerCode } = await manager.joinSession(inviteCode);
     showAnswerCode(sessionId, answerCode);
   } catch (e) {
@@ -311,8 +381,7 @@ function showAnswerCode(sessionId, answerCode) {
     <p id="error" class="error"></p>
   `);
   $('#btn-copy-answer').addEventListener('click', () => {
-    navigator.clipboard.writeText(answerCode);
-    $('#btn-copy-answer').textContent = 'Copied!';
+    copyToClipboard(answerCode, $('#btn-copy-answer'));
   });
   $('#btn-back').addEventListener('click', showSessionList);
   activeSessionId = sessionId;
@@ -364,8 +433,7 @@ function showReconnectInvite(sessionId, reconnectCode) {
     </div>
   `);
   $('#btn-copy-recon').addEventListener('click', () => {
-    navigator.clipboard.writeText(reconnectCode);
-    $('#btn-copy-recon').textContent = 'Copied!';
+    copyToClipboard(reconnectCode, $('#btn-copy-recon'));
   });
   $('#btn-finalize-recon').addEventListener('click', async () => {
     const btn = $('#btn-finalize-recon');
@@ -433,8 +501,7 @@ function showReconnectAnswer(sessionId, answerCode) {
     <p id="error" class="error"></p>
   `);
   $('#btn-copy-recon-answer').addEventListener('click', () => {
-    navigator.clipboard.writeText(answerCode);
-    $('#btn-copy-recon-answer').textContent = 'Copied!';
+    copyToClipboard(answerCode, $('#btn-copy-recon-answer'));
   });
   $('#btn-back').addEventListener('click', showSessionList);
   activeSessionId = sessionId;
@@ -446,6 +513,15 @@ function showSessionDetail(sessionId) {
   const s = manager.getSession(sessionId);
   if (!s) return showSessionList();
   const entry = manager.getEntry(sessionId);
+
+  // Status-aware action buttons in the detail view:
+  //  - Disconnected: "Retry Connection" (primary) + "Reconnect" (manual flow)
+  //  - Connected: "Open Chat"
+  //  - Pending: no action button (waiting for peer)
+  const isDisconnected = s.status === SessionStatus.DISCONNECTED;
+  const isPending = s.status === SessionStatus.AWAITING_ANSWER ||
+    s.status === SessionStatus.AWAITING_FINALIZE ||
+    s.status === SessionStatus.CONNECTING;
 
   render(`
     <h1>${escapeHtml(s.title || 'Chat ' + s.id.slice(0, 8))}</h1>
@@ -471,7 +547,8 @@ function showSessionDetail(sessionId) {
       </div>
     </div>
     <div class="actions">
-      ${s.status === SessionStatus.DISCONNECTED ? `<button id="btn-recon">Reconnect</button>` : ''}
+      ${isDisconnected ? `<button id="btn-retry" class="btn-retry">Retry Connection</button><button id="btn-recon" class="btn-outline">Manual Reconnect</button>` : ''}
+      ${isPending ? `<button id="btn-refresh-status" class="btn-outline">Refresh Status</button>` : ''}
       ${s.status === SessionStatus.CONNECTED ? `<button id="btn-open-chat">Open Chat</button>` : ''}
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
@@ -481,15 +558,32 @@ function showSessionDetail(sessionId) {
   $('#btn-save-title').addEventListener('click', async () => {
     const title = $('#edit-title').value.trim();
     await manager.sendTitle(sessionId, title);
+    showSuccess('Title updated');
   });
   if ($('#btn-copy-stored-code')) {
     $('#btn-copy-stored-code').addEventListener('click', () => {
-      navigator.clipboard.writeText(entry.pendingSignal.code);
-      $('#btn-copy-stored-code').textContent = 'Copied!';
+      copyToClipboard(entry.pendingSignal.code, $('#btn-copy-stored-code'));
+    });
+  }
+  // Retry: silently attempt to reconnect based on stored role
+  if ($('#btn-retry')) {
+    $('#btn-retry').addEventListener('click', async () => {
+      const btn = $('#btn-retry');
+      if (btn) { btn.disabled = true; btn.textContent = 'Retrying…'; }
+      try {
+        await handleReconnect(sessionId);
+      } catch {
+        showError('Reconnect failed — try manual reconnect');
+        if (btn) { btn.disabled = false; btn.textContent = 'Retry Connection'; }
+      }
     });
   }
   if ($('#btn-recon')) {
     $('#btn-recon').addEventListener('click', () => handleReconnect(sessionId));
+  }
+  // Refresh status: re-renders the detail view with latest session state
+  if ($('#btn-refresh-status')) {
+    $('#btn-refresh-status').addEventListener('click', () => showSessionDetail(sessionId));
   }
   if ($('#btn-open-chat')) {
     $('#btn-open-chat').addEventListener('click', () => showChat(sessionId));

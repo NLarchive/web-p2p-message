@@ -238,3 +238,62 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+
+/* ── Toast notifications ── */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 9999;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: all;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  max-width: 320px;
+}
+.toast.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.toast-success {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+/* ── Session search bar ── */
+.search-bar-wrap {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+}
+.session-search {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+/* ── Retry / reconnect button ── */
+.btn-retry {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-retry:hover {
+  background: var(--accent-hover);
+}
