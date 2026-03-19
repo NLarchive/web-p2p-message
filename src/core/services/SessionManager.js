@@ -22,10 +22,16 @@ export class SessionManager {
     this._identity = identity;
     this._storage = storage;
     this._createTransport = createTransport;
+    this._iceConfig = {}; // forwarded to createTransport as extra opts
 
     // Map<sessionId, { session, transport, keyPair, privateKeyJwk, messages, pendingSignal }>
     this._entries = new Map();
     this._listeners = {};
+  }
+
+  /** Set ICE override options (iceServers, iceTransportPolicy) for future transports. */
+  setIceConfig(config) {
+    this._iceConfig = config;
   }
 
   // ── Events ──
@@ -146,7 +152,7 @@ export class SessionManager {
 
   async createSession(title) {
     const sessionId = crypto.randomUUID();
-    const transport = this._createTransport(sessionId);
+    const transport = this._createTransport(sessionId, this._iceConfig);
     const localId = await this._identity.createIdentity();
     const session = new Session({ id: sessionId, role: 'host' });
     session.title = title || null;
@@ -269,7 +275,7 @@ export class SessionManager {
       }
     }
 
-    const transport = this._createTransport(offer.sessionId);
+    const transport = this._createTransport(offer.sessionId, this._iceConfig);
     const localId = await this._identity.createIdentity();
 
     const session = new Session({
@@ -486,7 +492,7 @@ export class SessionManager {
       }
     }
 
-    const transport = this._createTransport(sessionId);
+    const transport = this._createTransport(sessionId, this._iceConfig);
     entry.transport = transport;
     const offerSdp = await transport.createOffer();
 
@@ -523,7 +529,7 @@ export class SessionManager {
       }
     }
 
-    const transport = this._createTransport(sessionId);
+    const transport = this._createTransport(sessionId, this._iceConfig);
     entry.transport = transport;
     const answerSdp = await transport.acceptOffer(data.s);
 
@@ -731,7 +737,7 @@ export class SessionManager {
       entry.session.status = SessionStatus.CONNECTING;
     }
 
-    const transport = this._createTransport(sessionId, { isRehydration: true });
+    const transport = this._createTransport(sessionId, { isRehydration: true, ...this._iceConfig });
     entry.transport = transport;
     this._setupTransportListeners(sessionId);
     this._persistSession(sessionId);

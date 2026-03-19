@@ -1,0 +1,4 @@
+# Force LF line endings for HTML — the importmap CSP hash is computed from
+# the raw byte content the browser receives.  CRLF would produce a different
+# SHA-256, breaking Content-Security-Policy on Windows dev machines.
+index.html text eol=lf

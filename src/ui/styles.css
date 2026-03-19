@@ -147,6 +147,26 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
 .hidden {
   display: none;
 }
+.tor-guide {
+  padding-left: 1.2rem;
+  margin: 0.5rem 0;
+}
+.tor-guide li {
+  margin-bottom: 0.4rem;
+}
+.tor-guide code {
+  background: rgba(255,255,255,0.08);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+.turn-config-details {
+  margin-top: 0.5rem;
+}
+.turn-config-details summary {
+  cursor: pointer;
+  width: fit-content;
+}
 
 .messages {
   list-style: none;

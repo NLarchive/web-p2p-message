@@ -167,7 +167,7 @@ export function createSessionManager() {
     createTransport: (sessionId, opts = {}) =>
       workerRouter?.isAlive
         ? new SharedWorkerTransportAdapter(sessionId, workerRouter, opts)
-        : new WebRtcTransportAdapter(),
+        : new WebRtcTransportAdapter(opts),
   });
 
   return { manager, router: workerRouter };

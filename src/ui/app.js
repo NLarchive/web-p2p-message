@@ -150,13 +150,91 @@ function statusLabel(status) {
 function webRtcUnavailableNotice() {
   return `
     <div class="card warning-card">
-      <p class="status mb">WebRTC is unavailable in this browser.</p>
+      <p class="status mb">WebRTC is disabled in this browser.</p>
       <p class="status fs-sm">
-        Tor Browser disables WebRTC by design, so session creation and chat cannot run here.
-        Use a browser that supports WebRTC if you want to connect.
+        Tor Browser disables WebRTC by default. You have two options:
       </p>
+      <ol class="status fs-sm tor-guide">
+        <li><strong>Tails / Whonix users:</strong> enable WebRTC in <code>about:config</code>
+            → set <code>media.peerconnection.enabled</code> to <code>true</code>.
+            All traffic still routes through Tor at the OS level.</li>
+        <li><strong>Configure a TURN relay</strong> (below) so WebRTC tunnels over TCP
+            instead of UDP — compatible with Tor's TCP-only circuits.</li>
+      </ol>
+      <details class="turn-config-details mt-sm">
+        <summary class="btn-small btn-outline">Configure TURN Relay</summary>
+        <div class="card mt-sm">
+          <label class="field-label">TURN Server URL</label>
+          <input type="text" id="turn-url" placeholder="turn:your-server:443?transport=tcp" autocomplete="off" />
+          <label class="field-label mt-sm">Username (optional)</label>
+          <input type="text" id="turn-user" placeholder="ephemeral-user" autocomplete="off" />
+          <label class="field-label mt-sm">Credential (optional)</label>
+          <input type="password" id="turn-cred" placeholder="token" autocomplete="off" />
+          <div class="actions mt-sm">
+            <button id="btn-save-turn" class="btn-small">Save &amp; Enable</button>
+            <button id="btn-clear-turn" class="btn-small btn-outline">Clear</button>
+          </div>
+          <p class="status fs-xs text-muted mt-sm">
+            The TURN relay only sees encrypted ciphertext — your messages stay end-to-end encrypted.
+          </p>
+        </div>
+      </details>
     </div>
   `;
+}
+
+// ── TURN relay configuration persistence ──
+
+const TURN_STORAGE_KEY = 'p2p:turn-config';
+
+function loadTurnConfig() {
+  try {
+    const raw = localStorage.getItem(TURN_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveTurnConfig(config) {
+  if (config) {
+    localStorage.setItem(TURN_STORAGE_KEY, JSON.stringify(config));
+  } else {
+    localStorage.removeItem(TURN_STORAGE_KEY);
+  }
+}
+
+function applyTurnConfig() {
+  const cfg = loadTurnConfig();
+  if (!cfg?.url || !manager) return;
+  const server = { urls: cfg.url };
+  if (cfg.username) server.username = cfg.username;
+  if (cfg.credential) server.credential = cfg.credential;
+  manager.setIceConfig({
+    iceServers: [server],
+    iceTransportPolicy: 'relay',
+  });
+}
+
+function bindTurnConfigButtons() {
+  const btnSave = document.getElementById('btn-save-turn');
+  const btnClear = document.getElementById('btn-clear-turn');
+  if (btnSave) {
+    btnSave.addEventListener('click', () => {
+      const url = document.getElementById('turn-url')?.value.trim();
+      if (!url) return showError('Enter a TURN server URL');
+      const username = document.getElementById('turn-user')?.value.trim() || undefined;
+      const credential = document.getElementById('turn-cred')?.value.trim() || undefined;
+      saveTurnConfig({ url, username, credential });
+      applyTurnConfig();
+      showSuccess('TURN relay configured — connections will use relay mode');
+    });
+  }
+  if (btnClear) {
+    btnClear.addEventListener('click', () => {
+      saveTurnConfig(null);
+      if (manager) manager.setIceConfig({});
+      showSuccess('TURN relay cleared — using direct connections');
+    });
+  }
 }
 
 // ── Session List (Home) ──
@@ -191,13 +269,14 @@ function showSessionList() {
     })
     .join('');
 
+  const hasTurn = !!loadTurnConfig();
   const hasMultiple = sessions.length > 1;
 
   render(`
     <h1>P2P Message</h1>
     <h2>Encrypted peer-to-peer chat</h2>
     <div id="privacy-status" class="privacy-status privacy-checking">🔍 Checking network privacy…</div>
-    ${HAS_WEBRTC ? '' : webRtcUnavailableNotice()}
+    ${!HAS_WEBRTC ? webRtcUnavailableNotice() : (hasTurn ? `<div class="card card-tight"><p class="status fs-sm">🔀 TURN relay active — traffic routed through relay server</p></div>` : '')}
     ${hasMultiple ? `<div class="search-bar-wrap"><input type="text" id="session-search" class="session-search" placeholder="Search sessions…" autocomplete="off" /></div>` : ''}
     ${sessions.length > 0 ? `<div class="session-list" id="session-list">${sessionCards}</div>` : '<p class="status mb">No sessions yet. Create or join a chat.</p>'}
     <div class="actions mt-lg">
@@ -254,10 +333,7 @@ function showSessionList() {
   // Bind events
   $('#btn-create').addEventListener('click', showCreateForm);
   $('#btn-join').addEventListener('click', showJoinForm);
-  if (!HAS_WEBRTC) {
-    $('#btn-create').disabled = true;
-    $('#btn-join').disabled = true;
-  }
+  bindTurnConfigButtons();
 
   for (const el of document.querySelectorAll('.session-card-main')) {
     el.addEventListener('click', () => {
@@ -316,17 +392,17 @@ function showCreateForm() {
       <button id="btn-start-create">Create</button>
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
-    ${HAS_WEBRTC ? '' : webRtcUnavailableNotice()}
+    ${!HAS_WEBRTC ? webRtcUnavailableNotice() : ''}
     <p id="error" class="error"></p>
   `);
   $('#btn-start-create').addEventListener('click', handleCreate);
   $('#btn-back').addEventListener('click', showSessionList);
-  if (!HAS_WEBRTC) $('#btn-start-create').disabled = true;
+  bindTurnConfigButtons();
 }
 
 async function handleCreate() {
   if (!HAS_WEBRTC) {
-    return showError('WebRTC is unavailable in this browser. Tor Browser disables WebRTC, so session creation cannot continue here.');
+    return showError('WebRTC is disabled. Enable it in about:config (media.peerconnection.enabled) or configure a TURN relay on the home screen.');
   }
   const btn = $('#btn-start-create');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
@@ -436,17 +512,17 @@ function showJoinForm() {
       <button id="btn-accept">Accept Invite</button>
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
-    ${HAS_WEBRTC ? '' : webRtcUnavailableNotice()}
+    ${!HAS_WEBRTC ? webRtcUnavailableNotice() : ''}
     <p id="error" class="error"></p>
   `);
   $('#btn-accept').addEventListener('click', handleJoin);
   $('#btn-back').addEventListener('click', showSessionList);
-  if (!HAS_WEBRTC) $('#btn-accept').disabled = true;
+  bindTurnConfigButtons();
 }
 
 async function handleJoin() {
   if (!HAS_WEBRTC) {
-    return showError('WebRTC is unavailable in this browser. Tor Browser disables WebRTC, so joining cannot continue here.');
+    return showError('WebRTC is disabled. Enable it in about:config (media.peerconnection.enabled) or configure a TURN relay on the home screen.');
   }
   const btn = $('#btn-accept');
   if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
@@ -893,6 +969,7 @@ async function boot() {
   }
 
   await manager.loadSessions();
+  applyTurnConfig();
   showSessionList();
 }
 

@@ -13,9 +13,11 @@ const RATE_LIMIT_MAX = 30; // max messages per window
 export class WebRtcTransportAdapter extends ITransportPort {
   constructor({
     iceServers = [{ urls: 'stun:stun.l.google.com:19302' }],
+    iceTransportPolicy = 'all',
   } = {}) {
     super();
     this._iceServers = iceServers;
+    this._iceTransportPolicy = iceTransportPolicy;
     this._pc = null;
     this._dc = null;
     this._messageCallbacks = [];
@@ -32,7 +34,10 @@ export class WebRtcTransportAdapter extends ITransportPort {
       if (typeof RTCPeerConnection === 'undefined') {
         throw new Error('WebRTC is unavailable in this browser');
       }
-      this._pc = new RTCPeerConnection({ iceServers: this._iceServers });
+      this._pc = new RTCPeerConnection({
+        iceServers: this._iceServers,
+        iceTransportPolicy: this._iceTransportPolicy,
+      });
       this._setupStateHandlers();
       this._dc = this._pc.createDataChannel(DATA_CHANNEL_LABEL);
       this._setupDataChannel(this._dc);
@@ -50,7 +55,10 @@ export class WebRtcTransportAdapter extends ITransportPort {
       if (typeof RTCPeerConnection === 'undefined') {
         throw new Error('WebRTC is unavailable in this browser');
       }
-      this._pc = new RTCPeerConnection({ iceServers: this._iceServers });
+      this._pc = new RTCPeerConnection({
+        iceServers: this._iceServers,
+        iceTransportPolicy: this._iceTransportPolicy,
+      });
       this._setupStateHandlers();
       this._pc.ondatachannel = (event) => {
         this._dc = event.channel;
