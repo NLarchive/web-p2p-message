@@ -152,16 +152,30 @@ function webRtcUnavailableNotice() {
     <div class="card warning-card">
       <p class="status mb">WebRTC is unavailable in this browser.</p>
       <p class="status fs-sm">
-        Tor Browser disables WebRTC by default. TURN relay mode still requires WebRTC
-        support in the browser. On Tor, your practical options are:
+        Tor Browser disables WebRTC by default, and this app requires WebRTC.
+        <strong>Recommended:</strong> use a mainstream browser (Firefox, Chrome, Edge)
+        with a no-log system VPN for IP privacy — WebRTC stays on and your real IP
+        is hidden behind the VPN exit.
       </p>
-      <ol class="status fs-sm tor-guide">
-        <li><strong>Tails / Whonix users:</strong> enable WebRTC in <code>about:config</code>
-            → set <code>media.peerconnection.enabled</code> to <code>true</code>.
-            All traffic still routes through Tor at the OS level.</li>
-        <li><strong>Use a browser with WebRTC enabled</strong> and configure a TURN relay
-            (below) so WebRTC tunnels over TCP instead of UDP.</li>
-      </ol>
+      <details class="turn-config-details mt-sm">
+        <summary class="btn-small btn-outline">Advanced: Tor / Tails / Whonix</summary>
+        <div class="card mt-sm">
+          <p class="status fs-sm">
+            ⚠️ <strong>Advanced users only — understand the risks before proceeding.</strong>
+            Enabling WebRTC inside Tor Browser without a properly configured TCP TURN relay
+            <em>can leak your real IP address</em> even through Tor.
+            <a href="https://forum.torproject.org/t/enable-webrtc-in-tor-browser/2815"
+               target="_blank" rel="noopener noreferrer">Tor Project forum</a>
+          </p>
+          <ol class="status fs-sm tor-guide">
+            <li><strong>Tails / Whonix:</strong> set <code>media.peerconnection.enabled = true</code>
+                in <code>about:config</code> <em>and</em> configure TCP TURN relay below.
+                OS-level routing keeps traffic inside Tor, but you must use relay-only ICE.</li>
+            <li><strong>Tor Browser on desktop:</strong> same — requires both the flag flip
+                <em>and</em> a TCP TURN relay. Direct ICE will expose your IP.</li>
+          </ol>
+        </div>
+      </details>
       <details class="turn-config-details mt-sm">
         <summary class="btn-small btn-outline">Configure TURN Relay</summary>
         <div class="card mt-sm">
@@ -326,7 +340,7 @@ function showSessionList() {
         privacyEl.textContent = '🖥️ Local development — no external IP exposed';
         privacyEl.className = 'privacy-status privacy-unknown';
       } else if (status === 'webrtc-available') {
-        privacyEl.innerHTML = `⚠️ WebRTC active — peer can see your IP. Use <a href="https://www.torproject.org/" target="_blank" rel="noopener noreferrer">Tor</a> or a <a href="https://duckduckgo.com/?q=VPN" target="_blank" rel="noopener noreferrer">VPN</a> for IP privacy.`;
+        privacyEl.innerHTML = `⚠️ WebRTC active — peer can see your IP. Use a <a href="https://duckduckgo.com/?q=no-log+VPN" target="_blank" rel="noopener noreferrer">no-log system VPN</a> for IP privacy.`;
         privacyEl.className = 'privacy-status privacy-direct';
       } else {
         privacyEl.textContent = '🔒 Network privacy status unknown';
@@ -425,7 +439,7 @@ function showCreateForm() {
 
 async function handleCreate() {
   if (!HAS_WEBRTC) {
-    return showError('WebRTC is unavailable. On Tor Browser, enable media.peerconnection.enabled in about:config or use Tails/Whonix with WebRTC enabled. TURN relay mode also requires WebRTC support.');
+    return showError('WebRTC is unavailable. Recommended: use a mainstream browser + a system VPN. Advanced Tor users: enable media.peerconnection.enabled in about:config AND configure a TCP TURN relay — without a relay, WebRTC can leak your real IP through Tor.');
   }
   const btn = $('#btn-start-create');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
@@ -545,7 +559,7 @@ function showJoinForm() {
 
 async function handleJoin() {
   if (!HAS_WEBRTC) {
-    return showError('WebRTC is unavailable. On Tor Browser, enable media.peerconnection.enabled in about:config or use Tails/Whonix with WebRTC enabled. TURN relay mode also requires WebRTC support.');
+    return showError('WebRTC is unavailable. Recommended: use a mainstream browser + a system VPN. Advanced Tor users: enable media.peerconnection.enabled in about:config AND configure a TCP TURN relay — without a relay, WebRTC can leak your real IP through Tor.');
   }
   const btn = $('#btn-accept');
   if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
