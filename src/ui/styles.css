@@ -278,6 +278,31 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
   color: var(--success);
 }
 
+/* ── Network privacy indicator ── */
+.privacy-status {
+  display: inline-block;
+  margin-top: 0.6rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.privacy-tor {
+  border-color: var(--success);
+  color: var(--success);
+}
+.privacy-direct {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.privacy-unknown,
+.privacy-checking {
+  color: var(--text-muted);
+}
+
 /* ── Session search bar ── */
 .search-bar-wrap {
   margin-top: 0.75rem;

@@ -47,6 +47,28 @@ function dismissToast(toastEl) {
 function showError(msg) { showToast(msg, 'error'); }
 function showSuccess(msg) { showToast(msg, 'success', 2500); }
 
+// ── Tor / VPN privacy detection ──
+// Queries the Tor Project's official check endpoint to detect if the user is
+// routing through Tor. Result is cached per page load.
+// The IP address returned is NEVER stored or logged — only the boolean is kept.
+let _privacyStatus = null; // null = unchecked | 'tor' | 'direct' | 'unknown'
+
+async function detectNetworkPrivacy() {
+  if (_privacyStatus !== null) return _privacyStatus;
+  try {
+    const res = await fetch('https://check.torproject.org/api/ip', {
+      signal: AbortSignal.timeout(5000),
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('check failed');
+    const { IsTor } = await res.json();
+    _privacyStatus = IsTor ? 'tor' : 'direct';
+  } catch {
+    _privacyStatus = 'unknown';
+  }
+  return _privacyStatus;
+}
+
 // ── Helpers ──
 
 function render(html) {
@@ -136,6 +158,7 @@ function showSessionList() {
   render(`
     <h1>P2P Message</h1>
     <h2>Encrypted peer-to-peer chat</h2>
+    <div id="privacy-status" class="privacy-status privacy-checking">🔍 Checking network privacy…</div>
     ${hasMultiple ? `<div class="search-bar-wrap"><input type="text" id="session-search" class="session-search" placeholder="Search sessions…" autocomplete="off" /></div>` : ''}
     ${sessions.length > 0 ? `<div class="session-list" id="session-list">${sessionCards}</div>` : '<p class="status mb">No sessions yet. Create or join a chat.</p>'}
     <div class="actions" style="margin-top:1.5rem">
@@ -143,6 +166,24 @@ function showSessionList() {
       <button id="btn-join" class="btn-outline">Join Chat</button>
     </div>
   `);
+
+  // Privacy indicator — non-blocking; updates indicator once result arrives
+  const privacyEl = document.getElementById('privacy-status');
+  if (privacyEl) {
+    detectNetworkPrivacy().then((status) => {
+      if (!privacyEl.isConnected) return;
+      if (status === 'tor') {
+        privacyEl.textContent = '🧅 Using Tor — real IP is hidden from peer';
+        privacyEl.className = 'privacy-status privacy-tor';
+      } else if (status === 'direct') {
+        privacyEl.textContent = '⚠️ Direct connection — peer can see your IP. Use Tor or a VPN for IP privacy.';
+        privacyEl.className = 'privacy-status privacy-direct';
+      } else {
+        privacyEl.textContent = '🔒 Network privacy status unknown (offline or check blocked)';
+        privacyEl.className = 'privacy-status privacy-unknown';
+      }
+    });
+  }
 
   // Live DOM-filter search (no full re-render)
   const searchInput = document.getElementById('session-search');
@@ -485,25 +526,33 @@ function showReconnectGuest(sessionId) {
   $('#btn-back').addEventListener('click', showSessionList);
 }
 
+
 function showReconnectAnswer(sessionId, answerCode) {
+  // The guest's side of reconnection is now complete — the new WebRTC answer
+  // has been created and the transport listeners are set up. The connection
+  // will complete automatically (via onSessionUpdate → showChat) once the
+  // host calls finalizeReconnect and ICE/DTLS negotiate. No further action
+  // needed from the guest except sending the answer code to the host.
   render(`
     <h1>Reconnect — Guest</h1>
-    <p class="status mb">Role: Guest</p>
-    <p class="status mb">Send this answer code back to the host:</p>
+    <p class="status mb">Step 2 of 2: Send this answer code back to the host.</p>
     <textarea id="recon-answer-code" rows="4" readonly>${answerCode}</textarea>
     <div class="actions">
-      <button id="btn-copy-recon-answer">Copy</button>
+      <button id="btn-copy-recon-answer">Copy Answer Code</button>
     </div>
-    <p class="status mb" style="margin-top:1rem">🟠 Waiting for connection…</p>
+    <div class="card" style="margin-top:1rem">
+      <p class="mb">🟠 Waiting for host to complete the connection…</p>
+      <p style="font-size:0.8rem;color:var(--text-muted)">Once the host pastes your answer code and clicks Connect, this screen will automatically switch to the chat.</p>
+    </div>
     <div class="actions">
       <button id="btn-back" class="btn-outline">Back to Sessions</button>
     </div>
-    <p id="error" class="error"></p>
   `);
   $('#btn-copy-recon-answer').addEventListener('click', () => {
     copyToClipboard(answerCode, $('#btn-copy-recon-answer'));
   });
   $('#btn-back').addEventListener('click', showSessionList);
+  // Set activeSessionId so onSessionUpdate auto-navigates to chat on connect
   activeSessionId = sessionId;
 }
 
@@ -547,7 +596,7 @@ function showSessionDetail(sessionId) {
       </div>
     </div>
     <div class="actions">
-      ${isDisconnected ? `<button id="btn-retry" class="btn-retry">Retry Connection</button><button id="btn-recon" class="btn-outline">Manual Reconnect</button>` : ''}
+      ${isDisconnected ? `<button id="btn-retry" class="btn-retry">Reconnect</button>` : ''}
       ${isPending ? `<button id="btn-refresh-status" class="btn-outline">Refresh Status</button>` : ''}
       ${s.status === SessionStatus.CONNECTED ? `<button id="btn-open-chat">Open Chat</button>` : ''}
       <button id="btn-back" class="btn-outline">Back</button>
@@ -565,21 +614,8 @@ function showSessionDetail(sessionId) {
       copyToClipboard(entry.pendingSignal.code, $('#btn-copy-stored-code'));
     });
   }
-  // Retry: silently attempt to reconnect based on stored role
   if ($('#btn-retry')) {
-    $('#btn-retry').addEventListener('click', async () => {
-      const btn = $('#btn-retry');
-      if (btn) { btn.disabled = true; btn.textContent = 'Retrying…'; }
-      try {
-        await handleReconnect(sessionId);
-      } catch {
-        showError('Reconnect failed — try manual reconnect');
-        if (btn) { btn.disabled = false; btn.textContent = 'Retry Connection'; }
-      }
-    });
-  }
-  if ($('#btn-recon')) {
-    $('#btn-recon').addEventListener('click', () => handleReconnect(sessionId));
+    $('#btn-retry').addEventListener('click', () => handleReconnect(sessionId));
   }
   // Refresh status: re-renders the detail view with latest session state
   if ($('#btn-refresh-status')) {

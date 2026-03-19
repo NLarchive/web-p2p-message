@@ -74,3 +74,44 @@ When the project is ready for a stronger design, target a hybrid key establishme
 - never reuse IVs with AES-GCM
 - never market the MVP as quantum-safe
 - always separate current guarantees from future goals in documentation
+
+## IP Privacy and Network Anonymity
+
+### What WebRTC exposes
+
+WebRTC is a real endpoint-to-endpoint UDP protocol. ICE candidates contain real IP:port pairs that both peers must see to route packets. This is by design — the network stack has no way to deliver packets to an encrypted or fabricated address.
+
+The only "IP privacy" built into WebRTC itself is **mDNS masking** of *local* (LAN) IPs in ICE candidates; public/reflexive IPs are always real.
+
+### Why "IP crypto at the app layer" does not work
+
+You cannot encrypt or randomize the IP address inside a WebRTC application:
+
+- The ICE agent and STUN stack inside the browser will use and expose real IPs regardless of what the JS layer does.
+- If the IP in a candidate string is mangled, the remote ICE agent cannot route to it → connection always fails.
+- No JS-accessible API can intercept or rewrite the IP header; that requires a VPN driver or kernel module.
+- Attempting this would only give users a false sense of privacy, which is worse than doing nothing.
+
+This idea is explicitly rejected as a design direction for this project.
+
+### Recommended approach: Tor or VPN at the OS/network layer
+
+The correct way to hide your real IP in a WebRTC session is to route all traffic through Tor or a VPN **before** it reaches the browser:
+
+- When Tor Browser is used with WebRTC enabled (in a safe configuration), or when the OS routes all traffic through Tor, the peer and network only see the Tor exit IP.
+- A VPN achieves the same at the ISP level; the peer sees the VPN server IP.
+- The app does not need to change at all — the IP hiding is transparent at the network layer.
+
+This app detects whether the current connection is routed through Tor (via the Tor Project's official check endpoint) and shows a status indicator on the session list screen. The check is non-persistent: only the boolean result is retained in memory; no IP address is stored or logged anywhere.
+
+**Guidance for users who need IP anonymity:**
+
+1. Use Tor Browser (with WebRTC enabled per Tor Project guidance), or
+2. Enable a trusted VPN before opening the app, then verify the "Using Tor / VPN" indicator.
+
+### Residual risks
+
+- Even through Tor, WebRTC timing and traffic patterns may be observable by a sufficiently resourced adversary.
+- A VPN provider can observe your real IP; choose accordingly.
+- Both peers expose their exit IP to each other unless both route through Tor/VPN simultaneously.
+- This app does not and cannot force either party to use Tor or a VPN.

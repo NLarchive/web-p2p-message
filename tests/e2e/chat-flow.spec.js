@@ -132,7 +132,7 @@ test.describe('P2P chat — two peers', () => {
       await page.click('#btn-join');
       await page.fill('#invite-input', expiredCode);
       await page.click('#btn-accept');
-      await expect(page.locator('#error')).toContainText('expired', {
+      await expect(page.locator('.toast-error')).toContainText('expired', {
         timeout: 5000,
       });
     } finally {
@@ -150,11 +150,107 @@ test.describe('P2P chat — two peers', () => {
       await page.click('#btn-join');
       await page.fill('#invite-input', 'this-is-not-a-valid-base64url-code');
       await page.click('#btn-accept');
-      await expect(page.locator('#error')).toContainText('decode', {
+      await expect(page.locator('.toast-error')).toContainText('decode', {
         timeout: 5000,
       });
     } finally {
       await ctx.close();
+    }
+  });
+
+  test('reconnect after disconnect — code exchange restores the connection', async ({
+    browser,
+  }) => {
+    const hostCtx = await browser.newContext();
+    const guestCtx = await browser.newContext();
+
+    try {
+      const hostPage = await hostCtx.newPage();
+      const guestPage = await guestCtx.newPage();
+
+      // ── 1. Initial connection (same as main test) ─────────────────────────
+      await hostPage.goto('/');
+      await hostPage.click('#btn-create');
+      await hostPage.fill('#title-input', 'Reconnect Test');
+      await hostPage.click('#btn-start-create');
+
+      const inviteCodeLocator = hostPage.locator('#invite-code');
+      await expect(inviteCodeLocator).not.toHaveValue('', { timeout: ICE_TIMEOUT });
+      const inviteCode = await inviteCodeLocator.inputValue();
+
+      await guestPage.goto('/');
+      await guestPage.click('#btn-join');
+      await guestPage.fill('#invite-input', inviteCode);
+      await guestPage.click('#btn-accept');
+
+      const answerCodeLocator = guestPage.locator('#answer-code');
+      await expect(answerCodeLocator).not.toHaveValue('', { timeout: ICE_TIMEOUT });
+      const answerCode = await answerCodeLocator.inputValue();
+
+      await hostPage.fill('#answer-input', answerCode);
+      await hostPage.click('#btn-finalize');
+
+      // Both reach chat
+      await expect(hostPage.locator('.chat-header-status')).toContainText('Connected', {
+        timeout: CONNECT_TIMEOUT,
+      });
+      await expect(guestPage.locator('.chat-header-status')).toContainText('Connected', {
+        timeout: CONNECT_TIMEOUT,
+      });
+
+      // ── 2. Host disconnects ───────────────────────────────────────────────
+      await hostPage.click('#btn-chat-back');
+      // Session card for a CONNECTED session shows a Disconnect button
+      await hostPage.click('.btn-disconnect');
+      // Session list re-renders; session now shows Reconnect button
+      await expect(hostPage.locator('.btn-reconnect')).toBeVisible({ timeout: 5000 });
+
+      // Guest: navigate back to session list (DataChannel close propagates)
+      await guestPage.click('#btn-chat-back');
+      // Wait for guest session to show as disconnected too
+      await expect(guestPage.locator('.btn-reconnect')).toBeVisible({ timeout: 10_000 });
+
+      // ── 3. Host: initiate reconnect ───────────────────────────────────────
+      await hostPage.click('.btn-reconnect');
+      // Host reconnect screen generates a new offer (ICE gathering)
+      const reconCodeLocator = hostPage.locator('#recon-code');
+      await expect(reconCodeLocator).not.toHaveValue('', { timeout: ICE_TIMEOUT });
+      const reconCode = await reconCodeLocator.inputValue();
+      expect(reconCode.length).toBeGreaterThan(20);
+
+      // ── 4. Guest: paste reconnect code, get answer ────────────────────────
+      await guestPage.click('.btn-reconnect');
+      await guestPage.fill('#recon-input', reconCode);
+      await guestPage.click('#btn-accept-recon');
+
+      // Guest answer page — copy the answer code
+      const reconAnswerLocator = guestPage.locator('#recon-answer-code');
+      await expect(reconAnswerLocator).not.toHaveValue('', { timeout: ICE_TIMEOUT });
+      const reconAnswer = await reconAnswerLocator.inputValue();
+      expect(reconAnswer.length).toBeGreaterThan(20);
+
+      // ── 5. Host: paste guest answer → finalize ────────────────────────────
+      await hostPage.fill('#recon-answer', reconAnswer);
+      await hostPage.click('#btn-finalize-recon');
+
+      // ── 6. Both sides reconnect ───────────────────────────────────────────
+      await expect(hostPage.locator('.chat-header-status')).toContainText('Connected', {
+        timeout: CONNECT_TIMEOUT,
+      });
+      await expect(guestPage.locator('.chat-header-status')).toContainText('Connected', {
+        timeout: CONNECT_TIMEOUT,
+      });
+
+      // ── 7. Message exchange post-reconnect ────────────────────────────────
+      await hostPage.fill('#msg-input', 'Post-reconnect message');
+      await hostPage.click('#btn-send');
+      await expect(guestPage.locator('#msg-list li').last()).toContainText(
+        'Post-reconnect message',
+        { timeout: MSG_TIMEOUT },
+      );
+    } finally {
+      await hostCtx.close();
+      await guestCtx.close();
     }
   });
 });
