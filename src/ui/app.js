@@ -47,22 +47,35 @@ function dismissToast(toastEl) {
 function showError(msg) { showToast(msg, 'error'); }
 function showSuccess(msg) { showToast(msg, 'success', 2500); }
 
-// ── Tor / VPN privacy detection ──
-// Queries the Tor Project's official check endpoint to detect if the user is
-// routing through Tor. Result is cached per page load.
-// The IP address returned is NEVER stored or logged — only the boolean is kept.
-let _privacyStatus = null; // null = unchecked | 'tor' | 'direct' | 'unknown'
+// ── Network privacy detection ──
+// Detects whether WebRTC is disabled (Tor Browser) by attempting a quick local
+// ICE candidate gather without any STUN servers. If RTCPeerConnection is
+// unavailable or gathering yields zero candidates, the user is likely behind
+// Tor Browser. No external fetch is made — fully local and IP-blind.
+let _privacyStatus = null; // null = unchecked | 'tor-browser' | 'webrtc-available' | 'unknown'
 
 async function detectNetworkPrivacy() {
   if (_privacyStatus !== null) return _privacyStatus;
   try {
-    const res = await fetch('https://check.torproject.org/api/ip', {
-      signal: AbortSignal.timeout(5000),
-      cache: 'no-store',
+    if (typeof RTCPeerConnection === 'undefined') {
+      _privacyStatus = 'tor-browser';
+      return _privacyStatus;
+    }
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    pc.createDataChannel('probe');
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    // If WebRTC is blocked (Tor Browser) gathering completes instantly with empty candidates
+    const hasCandidates = await new Promise((resolve) => {
+      const timer = setTimeout(() => { pc.close(); resolve(false); }, 2000);
+      pc.onicecandidate = (e) => {
+        if (e.candidate) { clearTimeout(timer); pc.close(); resolve(true); }
+      };
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === 'complete') { clearTimeout(timer); pc.close(); resolve(false); }
+      };
     });
-    if (!res.ok) throw new Error('check failed');
-    const { IsTor } = await res.json();
-    _privacyStatus = IsTor ? 'tor' : 'direct';
+    _privacyStatus = hasCandidates ? 'webrtc-available' : 'tor-browser';
   } catch {
     _privacyStatus = 'unknown';
   }
@@ -172,14 +185,14 @@ function showSessionList() {
   if (privacyEl) {
     detectNetworkPrivacy().then((status) => {
       if (!privacyEl.isConnected) return;
-      if (status === 'tor') {
-        privacyEl.textContent = '🧅 Using Tor — real IP is hidden from peer';
+      if (status === 'tor-browser') {
+        privacyEl.textContent = '🧅 Tor Browser detected — WebRTC is disabled; real IP hidden';
         privacyEl.className = 'privacy-status privacy-tor';
-      } else if (status === 'direct') {
-        privacyEl.textContent = '⚠️ Direct connection — peer can see your IP. Use Tor or a VPN for IP privacy.';
+      } else if (status === 'webrtc-available') {
+        privacyEl.textContent = '⚠️ WebRTC active — peer can see your IP. Use Tor or a VPN for IP privacy.';
         privacyEl.className = 'privacy-status privacy-direct';
       } else {
-        privacyEl.textContent = '🔒 Network privacy status unknown (offline or check blocked)';
+        privacyEl.textContent = '🔒 Network privacy status unknown';
         privacyEl.className = 'privacy-status privacy-unknown';
       }
     });
@@ -572,13 +585,20 @@ function showSessionDetail(sessionId) {
     s.status === SessionStatus.AWAITING_FINALIZE ||
     s.status === SessionStatus.CONNECTING;
 
+  const fpChanged = s._previousRemoteFingerprint && s.remoteIdentity &&
+    s._previousRemoteFingerprint !== s.remoteIdentity.fingerprint;
+
   render(`
     <h1>${escapeHtml(s.title || 'Chat ' + s.id.slice(0, 8))}</h1>
+    ${fpChanged ? `<div class="card fp-warning"><p>⚠️ <strong>Peer keys changed!</strong> The peer's fingerprint is different from the previous session. Stop and verify via another channel before continuing.</p></div>` : ''}
     <div class="card">
       <p class="status">${statusIndicator(s.status)} ${statusLabel(s.status)}</p>
       <p style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-muted)">Role: ${s.role === 'host' ? 'Host' : 'Guest'}</p>
       ${s.localIdentity ? `<p style="font-size:0.8rem;color:var(--text-muted)">Your fingerprint: <span class="fingerprint">${s.localIdentity.fingerprint}</span></p>` : ''}
-      ${s.remoteIdentity ? `<p style="font-size:0.8rem;color:var(--text-muted)">Peer fingerprint: <span class="fingerprint">${s.remoteIdentity.fingerprint}</span></p>` : ''}
+      ${s.remoteIdentity ? `<p style="font-size:0.8rem;color:var(--text-muted)">Peer fingerprint: <span class="fingerprint">${s.remoteIdentity.fingerprint}</span>
+        <span class="fp-badge ${s.fingerprintVerified ? 'fp-verified' : 'fp-unverified'}">${s.fingerprintVerified ? '✔ Verified' : 'Unverified'}</span></p>` : ''}
+      ${s.remoteIdentity && !s.fingerprintVerified ? `<button id="btn-verify-fp" class="btn-small btn-outline" style="margin-top:0.3rem">Mark as Verified</button>` : ''}
+      ${s.remoteIdentity && s.fingerprintVerified ? `<button id="btn-unverify-fp" class="btn-small btn-outline" style="margin-top:0.3rem">Reset Verification</button>` : ''}
     </div>
     ${entry?.pendingSignal?.code ? `
     <div class="card">
@@ -601,6 +621,7 @@ function showSessionDetail(sessionId) {
       ${s.status === SessionStatus.CONNECTED ? `<button id="btn-open-chat">Open Chat</button>` : ''}
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
+    <p class="status" style="margin-top:1rem;font-size:0.75rem"><a href="https://github.com/NLarchive/web-p2p-message/blob/main/docs/security.md" target="_blank" rel="noreferrer">Security notes</a> — browser compromise is out of scope; this app does not add extra risks.</p>
     <p id="error" class="error"></p>
   `);
 
@@ -612,6 +633,21 @@ function showSessionDetail(sessionId) {
   if ($('#btn-copy-stored-code')) {
     $('#btn-copy-stored-code').addEventListener('click', () => {
       copyToClipboard(entry.pendingSignal.code, $('#btn-copy-stored-code'));
+    });
+  }
+  if ($('#btn-verify-fp')) {
+    $('#btn-verify-fp').addEventListener('click', async () => {
+      s.fingerprintVerified = true;
+      await manager._persistSession(sessionId);
+      showSuccess('Fingerprint marked as verified');
+      showSessionDetail(sessionId);
+    });
+  }
+  if ($('#btn-unverify-fp')) {
+    $('#btn-unverify-fp').addEventListener('click', async () => {
+      s.fingerprintVerified = false;
+      await manager._persistSession(sessionId);
+      showSessionDetail(sessionId);
     });
   }
   if ($('#btn-retry')) {
@@ -664,6 +700,7 @@ function showChat(sessionId) {
       <p style="font-size:0.75rem;color:var(--text-muted)">
         You: <span class="fingerprint" style="font-size:0.75rem">${s.localIdentity.fingerprint}</span> ·
         Peer: <span class="fingerprint" style="font-size:0.75rem">${s.remoteIdentity.fingerprint}</span>
+        <span class="fp-badge ${s.fingerprintVerified ? 'fp-verified' : 'fp-unverified'}">${s.fingerprintVerified ? '✔ Verified' : 'Unverified'}</span>
       </p>
     </div>` : ''}
     <ul class="messages" id="msg-list"></ul>

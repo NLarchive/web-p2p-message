@@ -102,7 +102,7 @@ The correct way to hide your real IP in a WebRTC session is to route all traffic
 - A VPN achieves the same at the ISP level; the peer sees the VPN server IP.
 - The app does not need to change at all — the IP hiding is transparent at the network layer.
 
-This app detects whether the current connection is routed through Tor (via the Tor Project's official check endpoint) and shows a status indicator on the session list screen. The check is non-persistent: only the boolean result is retained in memory; no IP address is stored or logged anywhere.
+This app detects whether WebRTC is disabled (typical of Tor Browser) by attempting a local ICE candidate gather with no STUN servers. If no candidates are found or `RTCPeerConnection` is unavailable, the app shows a "Tor Browser detected" badge. No external network request is made — detection is fully local and IP-blind.
 
 **Guidance for users who need IP anonymity:**
 
@@ -115,3 +115,37 @@ This app detects whether the current connection is routed through Tor (via the T
 - A VPN provider can observe your real IP; choose accordingly.
 - Both peers expose their exit IP to each other unless both route through Tor/VPN simultaneously.
 - This app does not and cannot force either party to use Tor or a VPN.
+
+## DoS and Resource Exhaustion Hardening
+
+The transport and session layers enforce several limits to prevent a rogue peer from consuming unbounded resources:
+
+- **Max ciphertext size (32 KB):** The WebRTC transport adapter silently drops any incoming message larger than 32 KB before it reaches decryption. This prevents memory exhaustion from inflated payloads.
+- **Rate limiting (30 msg/s):** A sliding-window counter rejects more than 30 incoming messages per second per data channel. Excess messages are silently dropped.
+- **Counter jump limit (10,000):** `Session.validateReceivedCounter` rejects any message whose counter jumps more than 10,000 steps ahead, preventing counter-flooding DoS.
+- **Nonce dedup buffer (500):** A rolling 500-item set of previously seen AES-GCM IVs rejects replayed ciphertexts before decryption.
+- **Ratchet skip limit (MAX_SKIP=100):** Out-of-order message key buffering caps at 100 skipped positions; requests beyond this are rejected.
+- **Skipped key buffer cap (200):** Oldest entries are evicted when the skipped-message-key map exceeds 200 entries.
+
+## Content Security Policy
+
+The CSP meta tag enforces:
+
+- `default-src 'self'` — restrictive baseline
+- `script-src 'self' 'sha256-...'` — no `unsafe-inline` for JS; only a SHA-256 hash for the importmap
+- `style-src 'self'` — no `unsafe-inline` for styles (CSS injection mitigated)
+- `connect-src 'self'` — no external fetch/XHR allowed
+- `object-src 'none'` — blocks plugins
+- `base-uri 'self'` — restricts base tag
+
+No third-party JS (analytics, widgets, etc.) is loaded in the main app path.
+
+## Fingerprint Verification
+
+Sessions track a `fingerprintVerified` boolean (default: `false`). The user can manually mark a peer's fingerprint as verified after out-of-band comparison. If the remote peer's fingerprint changes on reconnect:
+
+- The previous fingerprint is stored for comparison.
+- Verification is automatically reset.
+- A prominent warning is shown: "Peer keys changed — verify via another channel before continuing."
+
+The chat header shows "Verified" (green) or "Unverified" status at all times.

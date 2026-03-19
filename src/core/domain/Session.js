@@ -71,6 +71,8 @@ export class Session {
     this.messageCounter = 0;
     this._lastReceivedCounter = 0;
     this.errorReason = null;
+    this.fingerprintVerified = false; // true after user manually verifies peer fingerprint
+    this._previousRemoteFingerprint = null; // detect fingerprint changes on reconnect
   }
 
   get isExpired() {
@@ -141,6 +143,8 @@ export class Session {
       expiryMs: this.expiryMs,
       messageCounter: this.messageCounter,
       lastReceivedCounter: this._lastReceivedCounter,
+      fingerprintVerified: this.fingerprintVerified,
+      previousRemoteFingerprint: this._previousRemoteFingerprint,
       localIdentity: this.localIdentity?.toJSON() ?? null,
       remoteIdentity: this.remoteIdentity?.toJSON() ?? null,
       privateKeyJwk: privateKeyJwk ?? null,
@@ -172,6 +176,8 @@ export class Session {
     session.title = data.title ?? null;
     session.messageCounter = data.messageCounter ?? 0;
     session._lastReceivedCounter = data.lastReceivedCounter ?? 0;
+    session.fingerprintVerified = data.fingerprintVerified ?? false;
+    session._previousRemoteFingerprint = data.previousRemoteFingerprint ?? null;
     if (data.sendChainKey) session.sendChainKey = decode(data.sendChainKey);
     if (data.receiveChainKey) session.receiveChainKey = decode(data.receiveChainKey);
     if (data.rootKey) session.rootKey = decode(data.rootKey);

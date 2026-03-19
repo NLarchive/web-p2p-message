@@ -6,6 +6,9 @@ import {
 
 const DATA_CHANNEL_LABEL = 'p2p-message';
 const ICE_GATHER_TIMEOUT_MS = 5000;
+const MAX_INCOMING_BYTES = 32 * 1024; // 32 KB — reject oversized messages
+const RATE_LIMIT_WINDOW = 1000; // 1 s
+const RATE_LIMIT_MAX = 30; // max messages per window
 
 export class WebRtcTransportAdapter extends ITransportPort {
   constructor({
@@ -97,7 +100,21 @@ export class WebRtcTransportAdapter extends ITransportPort {
     dc.onopen = () => this._setState('connected');
     dc.onclose = () => this._setState('disconnected');
     dc.onerror = () => this._setState('disconnected');
+    // Rate-limit state — sliding window counter
+    let _rateCount = 0;
+    let _rateWindowStart = Date.now();
     dc.onmessage = (event) => {
+      // Enforce max ciphertext size — reject before any crypto work
+      const size = typeof event.data === 'string' ? event.data.length : event.data.byteLength;
+      if (size > MAX_INCOMING_BYTES) return; // silently drop oversized
+      // Sliding-window rate limit — drop excess and close on sustained flood
+      const now = Date.now();
+      if (now - _rateWindowStart >= RATE_LIMIT_WINDOW) {
+        _rateCount = 0;
+        _rateWindowStart = now;
+      }
+      _rateCount++;
+      if (_rateCount > RATE_LIMIT_MAX) return; // silently drop excess
       for (const cb of this._messageCallbacks) {
         cb(event.data);
       }

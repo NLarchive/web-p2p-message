@@ -3,6 +3,9 @@ export const SESSION_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes for invite expiry
 export const SESSION_ID_LENGTH = 16;
 export const FINGERPRINT_BYTES = 8;
 export const CLOCK_SKEW_MS = 30_000; // 30 s tolerance for legitimate clock drift
+export const MAX_CIPHERTEXT_BYTES = 32 * 1024; // 32 KB max encrypted payload
+export const RATE_LIMIT_WINDOW_MS = 1000; // 1 second rate-limit bucket
+export const RATE_LIMIT_MAX_MESSAGES = 30; // max messages per window per peer
 
 export function validateMessageText(text) {
   if (typeof text !== 'string') return 'Message text must be a string';

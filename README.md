@@ -56,7 +56,11 @@ This path keeps the first implementation small and understandable while preservi
 - generate and exchange a manual answer code
 - derive a shared encryption key with hybrid post-quantum handshake (XWing) or WebCrypto ECDH
 - exchange encrypted one-to-one messages over WebRTC DataChannels using AES-GCM
-- compare peer fingerprints in the UI
+- compare peer fingerprints in the UI with verified/unverified status tracking
+- fingerprint change detection with blocking warning on reconnect (auto-resets verification)
+- network privacy indicator via local WebRTC probe (Tor Browser detection, no external requests)
+- transport-level DoS hardening: 32 KB max incoming payload, 30 msg/s rate limit per DataChannel
+- strict CSP: no unsafe-inline directives, connect-src restricted to self
 - toast error/success notifications (replaces static error text)
 - session list search filter (DOM-only, no re-render) when multiple sessions exist
 - one-click clipboard copy with success feedback on all invite/answer codes
@@ -110,7 +114,7 @@ The preview server serves the built `dist/` directory so the same artifact can b
 
 ## GitHub Pages
 
-This repository includes a GitHub Actions workflow that builds the static app and deploys `dist/` to GitHub Pages on pushes to `main`.
+This repository includes a GitHub Actions workflow that builds the static app and deploys `dist/` to GitHub Pages on pushes to `master`.
 
 Repository:
 
@@ -135,10 +139,11 @@ Three-layer automated test suite:
 - use case orchestration
 - encrypted end-to-end flow
 
-**End-to-End (Playwright):**
-- complete host and guest chat flow
-- WebRTC connection establishment
-- message encryption and delivery
+**End-to-End (4 scenarios via Playwright):**
+- complete host and guest chat flow with WebRTC connection and encrypted messages
+- expired invite rejection
+- garbage invite rejection
+- reconnect flow (host reconnects to existing session)
 
 **Security Interceptor Suite (11 attack techniques):**
 - payload analysis (forbidden key fields: `seed`, `d`, nested objects)
@@ -204,6 +209,10 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **Combined fingerprint:** UI fingerprint now covers both KEM public key and signing public key (SHA-256 of both), making MITM substitution detectable
 - **Per-message symmetric ratchet:** HKDF derives directional send/receive chain keys from shared session secret; HMAC-SHA-256 advances each step to a fresh AES-GCM message key per message
 - **AES-GCM nonce deduplication:** per-session bounded set of seen IVs; replayed ciphertexts are silently dropped before decryption regardless of counter state
+- **Transport DoS hardening:** 32 KB max incoming message size and 30 msg/s sliding-window rate limit per WebRTC DataChannel; oversized or excess messages silently dropped
+- **Fingerprint verification state:** Session domain tracks `fingerprintVerified` and `_previousRemoteFingerprint`; UI shows verified/unverified badge; fingerprint change on reconnect auto-resets verification and shows a blocking warning
+- **CSP tightened:** removed `unsafe-inline` from `style-src`, added `connect-src 'self'`
+- **Local privacy probe:** replaced external `check.torproject.org` fetch with a local `RTCPeerConnection` probe — detects Tor Browser without any network request
 - **Branch sync:** `main` and `master` now point to identical commits; older GitHub file views showed stale `master` until force-push
 
 ## Notes

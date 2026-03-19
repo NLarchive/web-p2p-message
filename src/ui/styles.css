@@ -314,6 +314,32 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
   width: 100%;
 }
 
+/* ── Fingerprint verification ── */
+.fp-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+}
+.fp-verified {
+  background: rgba(81, 207, 102, 0.15);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+.fp-unverified {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.fp-warning {
+  border-color: var(--danger);
+  background: rgba(255, 107, 107, 0.08);
+  color: var(--danger);
+}
+
 /* ── Retry / reconnect button ── */
 .btn-retry {
   background: var(--accent);

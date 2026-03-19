@@ -416,6 +416,13 @@ export class SessionManager {
     const remoteFingerprint = await this._crypto.fingerprint(
       answer.publicKeyJwk,
     );
+    // Track fingerprint changes for UI warning
+    if (entry.session.remoteIdentity?.fingerprint) {
+      entry.session._previousRemoteFingerprint = entry.session.remoteIdentity.fingerprint;
+      if (entry.session.remoteIdentity.fingerprint !== remoteFingerprint) {
+        entry.session.fingerprintVerified = false; // reset on change
+      }
+    }
     entry.session.remoteIdentity = new PeerIdentity({
       publicKeyJwk: answer.publicKeyJwk,
       fingerprint: remoteFingerprint,
