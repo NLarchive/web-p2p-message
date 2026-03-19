@@ -150,16 +150,17 @@ function statusLabel(status) {
 function webRtcUnavailableNotice() {
   return `
     <div class="card warning-card">
-      <p class="status mb">WebRTC is disabled in this browser.</p>
+      <p class="status mb">WebRTC is unavailable in this browser.</p>
       <p class="status fs-sm">
-        Tor Browser disables WebRTC by default. You have two options:
+        Tor Browser disables WebRTC by default. TURN relay mode still requires WebRTC
+        support in the browser. On Tor, your practical options are:
       </p>
       <ol class="status fs-sm tor-guide">
         <li><strong>Tails / Whonix users:</strong> enable WebRTC in <code>about:config</code>
             → set <code>media.peerconnection.enabled</code> to <code>true</code>.
             All traffic still routes through Tor at the OS level.</li>
-        <li><strong>Configure a TURN relay</strong> (below) so WebRTC tunnels over TCP
-            instead of UDP — compatible with Tor's TCP-only circuits.</li>
+        <li><strong>Use a browser with WebRTC enabled</strong> and configure a TURN relay
+            (below) so WebRTC tunnels over TCP instead of UDP.</li>
       </ol>
       <details class="turn-config-details mt-sm">
         <summary class="btn-small btn-outline">Configure TURN Relay</summary>
@@ -187,11 +188,17 @@ function webRtcUnavailableNotice() {
 
 const TURN_STORAGE_KEY = 'p2p:turn-config';
 
-function loadTurnConfig() {
+function getTurnConfig() {
   try {
     const raw = localStorage.getItem(TURN_STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
+}
+
+function loadTurnConfig() {
+  return getTurnConfig();
 }
 
 function saveTurnConfig(config) {
@@ -205,7 +212,12 @@ function saveTurnConfig(config) {
 function applyTurnConfig() {
   const cfg = loadTurnConfig();
   if (!cfg?.url || !manager) return;
-  const server = { urls: cfg.url };
+  const urls = String(cfg.url)
+    .split(/\s*,\s*|\n+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (urls.length === 0) return;
+  const server = { urls: urls.length === 1 ? urls[0] : urls };
   if (cfg.username) server.username = cfg.username;
   if (cfg.credential) server.credential = cfg.credential;
   manager.setIceConfig({
@@ -217,13 +229,24 @@ function applyTurnConfig() {
 function bindTurnConfigButtons() {
   const btnSave = document.getElementById('btn-save-turn');
   const btnClear = document.getElementById('btn-clear-turn');
+  const cfg = loadTurnConfig();
+  const turnUrl = document.getElementById('turn-url');
+  const turnUser = document.getElementById('turn-user');
+  const turnCred = document.getElementById('turn-cred');
+  if (cfg) {
+    if (turnUrl) turnUrl.value = cfg.url || '';
+    if (turnUser) turnUser.value = cfg.username || '';
+    if (turnCred) turnCred.value = cfg.credential || '';
+  }
   if (btnSave) {
     btnSave.addEventListener('click', () => {
       const url = document.getElementById('turn-url')?.value.trim();
       if (!url) return showError('Enter a TURN server URL');
+      const urls = url.split(/\s*,\s*|\n+/).map((value) => value.trim()).filter(Boolean);
+      if (urls.length === 0) return showError('Enter a TURN server URL');
       const username = document.getElementById('turn-user')?.value.trim() || undefined;
       const credential = document.getElementById('turn-cred')?.value.trim() || undefined;
-      saveTurnConfig({ url, username, credential });
+      saveTurnConfig({ url: urls.length === 1 ? urls[0] : urls.join(','), username, credential });
       applyTurnConfig();
       showSuccess('TURN relay configured — connections will use relay mode');
     });
@@ -402,7 +425,7 @@ function showCreateForm() {
 
 async function handleCreate() {
   if (!HAS_WEBRTC) {
-    return showError('WebRTC is disabled. Enable it in about:config (media.peerconnection.enabled) or configure a TURN relay on the home screen.');
+    return showError('WebRTC is unavailable. On Tor Browser, enable media.peerconnection.enabled in about:config or use Tails/Whonix with WebRTC enabled. TURN relay mode also requires WebRTC support.');
   }
   const btn = $('#btn-start-create');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
@@ -522,7 +545,7 @@ function showJoinForm() {
 
 async function handleJoin() {
   if (!HAS_WEBRTC) {
-    return showError('WebRTC is disabled. Enable it in about:config (media.peerconnection.enabled) or configure a TURN relay on the home screen.');
+    return showError('WebRTC is unavailable. On Tor Browser, enable media.peerconnection.enabled in about:config or use Tails/Whonix with WebRTC enabled. TURN relay mode also requires WebRTC support.');
   }
   const btn = $('#btn-accept');
   if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
