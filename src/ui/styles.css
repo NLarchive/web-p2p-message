@@ -92,6 +92,15 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
   margin-bottom: 1rem;
 }
 
+.card-tight {
+  padding: 0.6rem 0.8rem;
+}
+
+.warning-card {
+  border-color: var(--danger);
+  background: rgba(255, 107, 107, 0.08);
+}
+
 .fingerprint {
   font-family: var(--mono);
   font-size: 0.9rem;
@@ -100,9 +109,44 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
   word-break: break-all;
 }
 
+.fingerprint-sm {
+  font-size: 0.75rem;
+}
+
 .status { font-size: 0.85rem; color: var(--text-muted); }
 .status.connected { color: var(--success); }
 .status.disconnected { color: var(--danger); }
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.fs-xs {
+  font-size: 0.75rem;
+}
+
+.fs-sm {
+  font-size: 0.8rem;
+}
+
+.mt-sm {
+  margin-top: 0.5rem;
+}
+
+.mt-md {
+  margin-top: 1rem;
+}
+
+.mt-lg {
+  margin-top: 1.5rem;
+}
+
+.btn-top-gap {
+  margin-top: 0.3rem;
+}
+.hidden {
+  display: none;
+}
 
 .messages {
   list-style: none;

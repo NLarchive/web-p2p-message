@@ -5,6 +5,7 @@ import { ControlAction } from '../core/domain/Envelope.js';
 const $ = (sel) => document.querySelector(sel);
 const app = document.getElementById('app');
 const SOURCE_URL = 'https://github.com/NLarchive/web-p2p-message';
+const HAS_WEBRTC = typeof RTCPeerConnection !== 'undefined';
 
 let manager;
 let activeSessionId = null;
@@ -134,6 +135,18 @@ function statusLabel(status) {
   return status;
 }
 
+function webRtcUnavailableNotice() {
+  return `
+    <div class="card warning-card">
+      <p class="status mb">WebRTC is unavailable in this browser.</p>
+      <p class="status fs-sm">
+        Tor Browser disables WebRTC by design, so session creation and chat cannot run here.
+        Use a browser that supports WebRTC if you want to connect.
+      </p>
+    </div>
+  `;
+}
+
 // ── Session List (Home) ──
 
 function showSessionList() {
@@ -172,9 +185,10 @@ function showSessionList() {
     <h1>P2P Message</h1>
     <h2>Encrypted peer-to-peer chat</h2>
     <div id="privacy-status" class="privacy-status privacy-checking">🔍 Checking network privacy…</div>
+    ${HAS_WEBRTC ? '' : webRtcUnavailableNotice()}
     ${hasMultiple ? `<div class="search-bar-wrap"><input type="text" id="session-search" class="session-search" placeholder="Search sessions…" autocomplete="off" /></div>` : ''}
     ${sessions.length > 0 ? `<div class="session-list" id="session-list">${sessionCards}</div>` : '<p class="status mb">No sessions yet. Create or join a chat.</p>'}
-    <div class="actions" style="margin-top:1.5rem">
+    <div class="actions mt-lg">
       <button id="btn-create">New Chat (Host)</button>
       <button id="btn-join" class="btn-outline">Join Chat</button>
     </div>
@@ -188,8 +202,13 @@ function showSessionList() {
       if (status === 'tor-browser') {
         privacyEl.textContent = '🧅 Tor Browser detected — WebRTC is disabled; real IP hidden';
         privacyEl.className = 'privacy-status privacy-tor';
+        // Async probe confirmed Tor: disable connection buttons even if HAS_WEBRTC was true
+        const btnCreate = document.getElementById('btn-create');
+        const btnJoin = document.getElementById('btn-join');
+        if (btnCreate) btnCreate.disabled = true;
+        if (btnJoin) btnJoin.disabled = true;
       } else if (status === 'webrtc-available') {
-        privacyEl.textContent = '⚠️ WebRTC active — peer can see your IP. Use Tor or a VPN for IP privacy.';
+        privacyEl.innerHTML = `⚠️ WebRTC active — peer can see your IP. Use <a href="https://www.torproject.org/" target="_blank" rel="noopener noreferrer">Tor</a> or a <a href="https://duckduckgo.com/?q=VPN" target="_blank" rel="noopener noreferrer">VPN</a> for IP privacy.`;
         privacyEl.className = 'privacy-status privacy-direct';
       } else {
         privacyEl.textContent = '🔒 Network privacy status unknown';
@@ -205,7 +224,7 @@ function showSessionList() {
       const q = searchInput.value.toLowerCase();
       document.querySelectorAll('#session-list .session-card').forEach((card) => {
         const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(q) ? '' : 'none';
+        card.classList.toggle('hidden', !text.includes(q));
       });
     });
     searchInput.addEventListener('keydown', (e) => {
@@ -219,6 +238,10 @@ function showSessionList() {
   // Bind events
   $('#btn-create').addEventListener('click', showCreateForm);
   $('#btn-join').addEventListener('click', showJoinForm);
+  if (!HAS_WEBRTC) {
+    $('#btn-create').disabled = true;
+    $('#btn-join').disabled = true;
+  }
 
   for (const el of document.querySelectorAll('.session-card-main')) {
     el.addEventListener('click', () => {
@@ -277,13 +300,18 @@ function showCreateForm() {
       <button id="btn-start-create">Create</button>
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
+    ${HAS_WEBRTC ? '' : webRtcUnavailableNotice()}
     <p id="error" class="error"></p>
   `);
   $('#btn-start-create').addEventListener('click', handleCreate);
   $('#btn-back').addEventListener('click', showSessionList);
+  if (!HAS_WEBRTC) $('#btn-start-create').disabled = true;
 }
 
 async function handleCreate() {
+  if (!HAS_WEBRTC) {
+    return showError('WebRTC is unavailable in this browser. Tor Browser disables WebRTC, so session creation cannot continue here.');
+  }
   const btn = $('#btn-start-create');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
   try {
@@ -304,7 +332,7 @@ function showInviteCode(sessionId, inviteCode) {
     <div class="actions">
       <button id="btn-copy">Copy</button>
     </div>
-    <div class="card" style="margin-top:1rem">
+    <div class="card mt-md">
       <p class="mb">Paste their answer code:</p>
       <textarea id="answer-input" rows="4" placeholder="Paste answer code here..."></textarea>
       <div class="actions">
@@ -333,14 +361,14 @@ function showHostWaiting(sessionId) {
     <h1>${escapeHtml(entry.session.title || 'Chat')}</h1>
     <p class="status mb">🟠 Awaiting answer code from peer</p>
     ${inviteCode ? `
-    <div class="card">
+    <div class="card mt-md">
       <p class="mb">Stored invite code:</p>
       <textarea id="invite-code" rows="4" readonly>${inviteCode}</textarea>
       <div class="actions">
         <button id="btn-copy">Copy</button>
       </div>
     </div>` : ''}
-    <div class="card">
+    <div class="card mt-md">
       <p class="mb">Paste the answer code:</p>
       <textarea id="answer-input" rows="4" placeholder="Paste answer code here..."></textarea>
       <div class="actions">
@@ -386,19 +414,24 @@ async function handleFinalize(sessionId) {
 function showJoinForm() {
   render(`
     <h1>Join Chat</h1>
-    <p class="status mb" style="margin-top:1rem">Paste the invite code you received:</p>
+    <p class="status mb mt-md">Paste the invite code you received:</p>
     <textarea id="invite-input" rows="4" placeholder="Paste invite code here..."></textarea>
     <div class="actions">
       <button id="btn-accept">Accept Invite</button>
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
+    ${HAS_WEBRTC ? '' : webRtcUnavailableNotice()}
     <p id="error" class="error"></p>
   `);
   $('#btn-accept').addEventListener('click', handleJoin);
   $('#btn-back').addEventListener('click', showSessionList);
+  if (!HAS_WEBRTC) $('#btn-accept').disabled = true;
 }
 
 async function handleJoin() {
+  if (!HAS_WEBRTC) {
+    return showError('WebRTC is unavailable in this browser. Tor Browser disables WebRTC, so joining cannot continue here.');
+  }
   const btn = $('#btn-accept');
   if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
   try {
@@ -428,7 +461,7 @@ function showAnswerCode(sessionId, answerCode) {
     <div class="actions">
       <button id="btn-copy-answer">Copy</button>
     </div>
-    <p class="status mb" style="margin-top:1rem">🟠 Waiting for connection…</p>
+    <p class="status mb mt-md">🟠 Waiting for connection…</p>
     <div class="actions">
       <button id="btn-back" class="btn-outline">Back to Sessions</button>
     </div>
@@ -474,7 +507,7 @@ function showReconnectInvite(sessionId, reconnectCode) {
     <div class="actions">
       <button id="btn-copy-recon">Copy</button>
     </div>
-    <div class="card" style="margin-top:1rem">
+    <div class="card mt-md">
       <p class="mb">Paste their answer code:</p>
       <textarea id="recon-answer" rows="4" placeholder="Paste answer code here..."></textarea>
       <div class="actions">
@@ -553,9 +586,9 @@ function showReconnectAnswer(sessionId, answerCode) {
     <div class="actions">
       <button id="btn-copy-recon-answer">Copy Answer Code</button>
     </div>
-    <div class="card" style="margin-top:1rem">
+    <div class="card mt-md">
       <p class="mb">🟠 Waiting for host to complete the connection…</p>
-      <p style="font-size:0.8rem;color:var(--text-muted)">Once the host pastes your answer code and clicks Connect, this screen will automatically switch to the chat.</p>
+      <p class="status fs-sm">Once the host pastes your answer code and clicks Connect, this screen will automatically switch to the chat.</p>
     </div>
     <div class="actions">
       <button id="btn-back" class="btn-outline">Back to Sessions</button>
@@ -593,12 +626,12 @@ function showSessionDetail(sessionId) {
     ${fpChanged ? `<div class="card fp-warning"><p>⚠️ <strong>Peer keys changed!</strong> The peer's fingerprint is different from the previous session. Stop and verify via another channel before continuing.</p></div>` : ''}
     <div class="card">
       <p class="status">${statusIndicator(s.status)} ${statusLabel(s.status)}</p>
-      <p style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-muted)">Role: ${s.role === 'host' ? 'Host' : 'Guest'}</p>
-      ${s.localIdentity ? `<p style="font-size:0.8rem;color:var(--text-muted)">Your fingerprint: <span class="fingerprint">${s.localIdentity.fingerprint}</span></p>` : ''}
-      ${s.remoteIdentity ? `<p style="font-size:0.8rem;color:var(--text-muted)">Peer fingerprint: <span class="fingerprint">${s.remoteIdentity.fingerprint}</span>
+      <p class="status fs-sm mt-sm">Role: ${s.role === 'host' ? 'Host' : 'Guest'}</p>
+      ${s.localIdentity ? `<p class="status fs-sm">Your fingerprint: <span class="fingerprint">${s.localIdentity.fingerprint}</span></p>` : ''}
+      ${s.remoteIdentity ? `<p class="status fs-sm">Peer fingerprint: <span class="fingerprint">${s.remoteIdentity.fingerprint}</span>
         <span class="fp-badge ${s.fingerprintVerified ? 'fp-verified' : 'fp-unverified'}">${s.fingerprintVerified ? '✔ Verified' : 'Unverified'}</span></p>` : ''}
-      ${s.remoteIdentity && !s.fingerprintVerified ? `<button id="btn-verify-fp" class="btn-small btn-outline" style="margin-top:0.3rem">Mark as Verified</button>` : ''}
-      ${s.remoteIdentity && s.fingerprintVerified ? `<button id="btn-unverify-fp" class="btn-small btn-outline" style="margin-top:0.3rem">Reset Verification</button>` : ''}
+      ${s.remoteIdentity && !s.fingerprintVerified ? `<button id="btn-verify-fp" class="btn-small btn-outline btn-top-gap">Mark as Verified</button>` : ''}
+      ${s.remoteIdentity && s.fingerprintVerified ? `<button id="btn-unverify-fp" class="btn-small btn-outline btn-top-gap">Reset Verification</button>` : ''}
     </div>
     ${entry?.pendingSignal?.code ? `
     <div class="card">
@@ -621,7 +654,7 @@ function showSessionDetail(sessionId) {
       ${s.status === SessionStatus.CONNECTED ? `<button id="btn-open-chat">Open Chat</button>` : ''}
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
-    <p class="status" style="margin-top:1rem;font-size:0.75rem"><a href="https://github.com/NLarchive/web-p2p-message/blob/main/docs/security.md" target="_blank" rel="noreferrer">Security notes</a> — browser compromise is out of scope; this app does not add extra risks.</p>
+    <p class="status fs-xs mt-md"><a href="https://github.com/NLarchive/web-p2p-message/blob/main/docs/security.md" target="_blank" rel="noreferrer">Security notes</a> — browser compromise is out of scope; this app does not add extra risks.</p>
     <p id="error" class="error"></p>
   `);
 
@@ -696,10 +729,10 @@ function showChat(sessionId) {
       <button id="btn-chat-detail" class="btn-small btn-outline">ⓘ</button>
     </div>
     ${s.localIdentity && s.remoteIdentity ? `
-    <div class="card" style="padding:0.6rem 0.8rem;">
-      <p style="font-size:0.75rem;color:var(--text-muted)">
-        You: <span class="fingerprint" style="font-size:0.75rem">${s.localIdentity.fingerprint}</span> ·
-        Peer: <span class="fingerprint" style="font-size:0.75rem">${s.remoteIdentity.fingerprint}</span>
+    <div class="card card-tight">
+      <p class="status fs-xs text-muted">
+        You: <span class="fingerprint fingerprint-sm">${s.localIdentity.fingerprint}</span> ·
+        Peer: <span class="fingerprint fingerprint-sm">${s.remoteIdentity.fingerprint}</span>
         <span class="fp-badge ${s.fingerprintVerified ? 'fp-verified' : 'fp-unverified'}">${s.fingerprintVerified ? '✔ Verified' : 'Unverified'}</span>
       </p>
     </div>` : ''}

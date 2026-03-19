@@ -29,6 +29,9 @@ export class WebRtcTransportAdapter extends ITransportPort {
 
   async createOffer() {
     try {
+      if (typeof RTCPeerConnection === 'undefined') {
+        throw new Error('WebRTC is unavailable in this browser');
+      }
       this._pc = new RTCPeerConnection({ iceServers: this._iceServers });
       this._setupStateHandlers();
       this._dc = this._pc.createDataChannel(DATA_CHANNEL_LABEL);
@@ -44,6 +47,9 @@ export class WebRtcTransportAdapter extends ITransportPort {
 
   async acceptOffer(offerSdp) {
     try {
+      if (typeof RTCPeerConnection === 'undefined') {
+        throw new Error('WebRTC is unavailable in this browser');
+      }
       this._pc = new RTCPeerConnection({ iceServers: this._iceServers });
       this._setupStateHandlers();
       this._pc.ondatachannel = (event) => {

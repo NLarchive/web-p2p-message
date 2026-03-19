@@ -1,6 +1,7 @@
-import { mkdir, copyFile, readdir, stat, rm } from 'node:fs/promises';
+import { mkdir, copyFile, readdir, stat, rm, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -29,5 +30,20 @@ await copyRecursive(path.join(rootDir, 'src'), path.join(distDir, 'src'));
 await copyRecursive(path.join(rootDir, 'node_modules', '@noble', 'post-quantum'), path.join(distDir, 'vendor', '@noble', 'post-quantum'));
 await copyRecursive(path.join(rootDir, 'node_modules', '@noble', 'curves'), path.join(distDir, 'vendor', '@noble', 'curves'));
 await copyRecursive(path.join(rootDir, 'node_modules', '@noble', 'hashes'), path.join(distDir, 'vendor', '@noble', 'hashes'));
+
+// Normalise index.html to LF and inject the correct importmap CSP hash so the
+// deployed file is always self-consistent regardless of OS line endings.
+const indexPath = path.join(distDir, 'index.html');
+let html = await readFile(indexPath, 'utf8');
+html = html.replace(/\r\n/g, '\n');
+
+const importmapMatch = html.match(/<script\s+type="importmap">([\s\S]*?)<\/script>/);
+if (importmapMatch) {
+  const importmapContent = importmapMatch[1];
+  const hash = createHash('sha256').update(importmapContent, 'utf8').digest('base64');
+  html = html.replace(/'sha256-[A-Za-z0-9+/=]+'/, `'sha256-${hash}'`);
+}
+
+await writeFile(indexPath, html, 'utf8');
 
 console.log('Built static site into dist/');
