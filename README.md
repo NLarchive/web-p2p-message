@@ -57,6 +57,10 @@ This path keeps the first implementation small and understandable while preservi
 - derive a shared encryption key with hybrid post-quantum handshake (XWing) or WebCrypto ECDH
 - exchange encrypted one-to-one messages over WebRTC DataChannels using AES-GCM
 - compare peer fingerprints in the UI
+- toast error/success notifications (replaces static error text)
+- session list search filter (DOM-only, no re-render) when multiple sessions exist
+- one-click clipboard copy with success feedback on all invite/answer codes
+- retry connection and refresh status buttons on the session detail view
 - run comprehensive automated test suite (unit, E2E, security interceptor)
 
 ## Planned Repository Structure
