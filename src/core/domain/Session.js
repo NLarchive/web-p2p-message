@@ -133,8 +133,8 @@ export class Session {
     };
   }
 
-  toSerializable(privateKeyJwk) {
-    return {
+  toSerializable({ includeSecrets = false, privateKeyJwk = null } = {}) {
+    const data = {
       id: this.id,
       role: this.role,
       status: this.status,
@@ -147,20 +147,21 @@ export class Session {
       previousRemoteFingerprint: this._previousRemoteFingerprint,
       localIdentity: this.localIdentity?.toJSON() ?? null,
       remoteIdentity: this.remoteIdentity?.toJSON() ?? null,
-      privateKeyJwk: privateKeyJwk ?? null,
-      sendChainKey: this.sendChainKey ? encode(this.sendChainKey) : null,
-      receiveChainKey: this.receiveChainKey ? encode(this.receiveChainKey) : null,
-      rootKey: this.rootKey ? encode(this.rootKey) : null,
-      dhRatchetPublicKeyJwk: this.dhRatchetPublicKeyJwk ?? null,
-      dhRatchetPrivateKeyJwk: this.dhRatchetPrivateKeyJwk ?? null,
-      lastRemoteRatchetPubKeyStr: this._lastRemoteRatchetPubKeyStr ?? null,
-      sendChainIndex: this.sendChainIndex,
-      receiveChainIndex: this.receiveChainIndex,
-      // skippedMessageKeys contains CryptoKey objects — not serialisable; lost on reload (acceptable)
     };
+
+    if (includeSecrets) {
+      data.privateKeyJwk = privateKeyJwk ?? null;
+      data.sendChainKey = this.sendChainKey ? encode(this.sendChainKey) : null;
+      data.receiveChainKey = this.receiveChainKey ? encode(this.receiveChainKey) : null;
+      data.rootKey = this.rootKey ? encode(this.rootKey) : null;
+      data.dhRatchetPrivateKeyJwk = this.dhRatchetPrivateKeyJwk ?? null;
+    }
+
+    // skippedMessageKeys contains CryptoKey objects — not serialisable; lost on reload (acceptable)
+    return data;
   }
 
-  static fromSerializable(data) {
+  static fromSerializable(data, { includeSecrets = false } = {}) {
     const session = new Session({
       id: data.id,
       role: data.role,
@@ -178,20 +179,22 @@ export class Session {
     session._lastReceivedCounter = data.lastReceivedCounter ?? 0;
     session.fingerprintVerified = data.fingerprintVerified ?? false;
     session._previousRemoteFingerprint = data.previousRemoteFingerprint ?? null;
-    if (data.sendChainKey) session.sendChainKey = decode(data.sendChainKey);
-    if (data.receiveChainKey) session.receiveChainKey = decode(data.receiveChainKey);
-    if (data.rootKey) session.rootKey = decode(data.rootKey);
     if (data.dhRatchetPublicKeyJwk) session.dhRatchetPublicKeyJwk = data.dhRatchetPublicKeyJwk;
-    if (data.dhRatchetPrivateKeyJwk) session.dhRatchetPrivateKeyJwk = data.dhRatchetPrivateKeyJwk;
     if (data.lastRemoteRatchetPubKeyStr) session._lastRemoteRatchetPubKeyStr = data.lastRemoteRatchetPubKeyStr;
     session.sendChainIndex = data.sendChainIndex ?? 0;
     session.receiveChainIndex = data.receiveChainIndex ?? 0;
+    if (includeSecrets) {
+      if (data.sendChainKey) session.sendChainKey = decode(data.sendChainKey);
+      if (data.receiveChainKey) session.receiveChainKey = decode(data.receiveChainKey);
+      if (data.rootKey) session.rootKey = decode(data.rootKey);
+      if (data.dhRatchetPrivateKeyJwk) session.dhRatchetPrivateKeyJwk = data.dhRatchetPrivateKeyJwk;
+    }
     if (data.localIdentity) {
       session.localIdentity = PeerIdentity.fromJSON(data.localIdentity);
     }
     if (data.remoteIdentity) {
       session.remoteIdentity = PeerIdentity.fromJSON(data.remoteIdentity);
     }
-    return { session, privateKeyJwk: data.privateKeyJwk ?? null };
+    return { session, privateKeyJwk: includeSecrets ? data.privateKeyJwk ?? null : null };
   }
 }

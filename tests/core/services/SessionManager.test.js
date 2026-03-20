@@ -208,6 +208,91 @@ describe('SessionManager', () => {
     expect(titles).toContain('Another Chat');
   });
 
+  it('persists only public session data by default', async () => {
+    const storage = new MockStoragePort();
+    const manager = new SessionManager({
+      crypto: new MockCryptoPort(),
+      signaling: new MockSignalingPort(),
+      identity: new MockIdentityPort(),
+      storage,
+      createTransport: () => new MockTransportPort(),
+    });
+
+    const { sessionId, inviteCode } = await manager.createSession('Boundary Test');
+    const { answerCode } = await manager.joinSession(inviteCode);
+    await manager.finalizeSession(sessionId, answerCode);
+
+    const stored = await storage.load(`session:${sessionId}`);
+    expect(stored.privateKeyJwk).toBeUndefined();
+    expect(stored.sharedKey).toBeUndefined();
+    expect(stored.rootKey).toBeUndefined();
+    expect(stored.sendChainKey).toBeUndefined();
+    expect(stored.receiveChainKey).toBeUndefined();
+    expect(stored.dhRatchetPrivateKeyJwk).toBeUndefined();
+    expect(await storage.load(`secret:${sessionId}`)).toBeNull();
+  });
+
+  it('enables secret persistence with a passphrase', async () => {
+    const storage = new MockStoragePort();
+    const manager = new SessionManager({
+      crypto: new MockCryptoPort(),
+      signaling: new MockSignalingPort(),
+      identity: new MockIdentityPort(),
+      storage,
+      createTransport: () => new MockTransportPort(),
+    });
+
+    const { sessionId, inviteCode } = await manager.createSession('Secret Persistence');
+    const { answerCode } = await manager.joinSession(inviteCode);
+    await manager.finalizeSession(sessionId, answerCode);
+
+    await manager.enableSecretPersistence('correct horse battery staple');
+
+    const secretRecord = await storage.load(`secret:${sessionId}`);
+    expect(secretRecord).toMatchObject({
+      v: 1,
+      iv: expect.any(String),
+      data: expect.any(String),
+    });
+  });
+
+  it('clears persisted data from storage', async () => {
+    const storage = new MockStoragePort();
+    const manager = new SessionManager({
+      crypto: new MockCryptoPort(),
+      signaling: new MockSignalingPort(),
+      identity: new MockIdentityPort(),
+      storage,
+      createTransport: () => new MockTransportPort(),
+    });
+
+    const { sessionId } = await manager.createSession('Clear Me');
+    await manager.clearPersistedData();
+
+    expect(await storage.load('session_ids')).toBeNull();
+    expect(await storage.load(`session:${sessionId}`)).toBeNull();
+    expect(await storage.load(`messages:${sessionId}`)).toBeNull();
+    expect(await storage.load(`secret:${sessionId}`)).toBeNull();
+  });
+
+  it('warns when secret persistence is enabled', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    new SessionManager({
+      crypto: new MockCryptoPort(),
+      signaling: new MockSignalingPort(),
+      identity: new MockIdentityPort(),
+      storage: new MockStoragePort(),
+      createTransport: () => new MockTransportPort(),
+      persistSecrets: true,
+      secretPassphrase: 'correct horse battery staple',
+    });
+
+    expect(warn).toHaveBeenCalledWith(
+      '[SessionManager] Secret persistence is enabled. Session keys are stored on this device and should be protected with the passphrase.',
+    );
+  });
+
   it('handles delete request protocol', async () => {
     const { manager, transports } = createManager();
     const { sessionId } = await manager.createSession('Chat');
@@ -492,5 +577,64 @@ describe('SessionManager', () => {
     await hostManager.sendMessage(sessionId, 'msg-h3');
     await new Promise((r) => setTimeout(r, 50));
     expect(guestMsgs.map((m) => m.text)).toContain('msg-h3');
+  });
+
+  it('zeroes raw key material when a session is deleted', async () => {
+    const { manager } = createManager();
+    const { sessionId } = await manager.createSession('Secure Chat');
+
+    const session = manager.getSession(sessionId);
+    const sendKey = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const recvKey = new Uint8Array([9, 10, 11, 12, 13, 14, 15, 16]);
+    const rootKey = new Uint8Array([17, 18, 19, 20, 21, 22, 23, 24]);
+    session.sendChainKey = sendKey;
+    session.receiveChainKey = recvKey;
+    session.rootKey = rootKey;
+
+    await manager.deleteSession(sessionId);
+
+    expect(manager.getSessions().length).toBe(0);
+    // Raw Uint8Array key material must be filled with zeros
+    expect(Array.from(sendKey)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(Array.from(recvKey)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(Array.from(rootKey)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    // Key references must be nulled
+    expect(session.sendChainKey).toBeNull();
+    expect(session.receiveChainKey).toBeNull();
+    expect(session.rootKey).toBeNull();
+  });
+
+  it('emits a security event when a replay is detected (duplicate nonce)', async () => {
+    const { manager, transports } = createManager();
+    const { sessionId } = await manager.createSession('Replay Security Test');
+    const answerCode = JSON.stringify({
+      type: 'answer',
+      sdp: { type: 'answer', sdp: 'mock-sdp' },
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'peer_x', y: 'peer_y' },
+      sessionId,
+    });
+    await manager.finalizeSession(sessionId, answerCode);
+    transports[0].simulateStateChange('connected');
+
+    // Build a 16-byte base64url ciphertext: 12-byte nonce prefix + 4-byte payload
+    const nonce = new Uint8Array(12).fill(0xab);
+    const body = new Uint8Array(4).fill(0xff);
+    const ct = new Uint8Array(16);
+    ct.set(nonce, 0);
+    ct.set(body, 12);
+    const ciphertext = encode(ct);
+    const nonceKey = encode(nonce);
+
+    // Pre-populate seenNonces to simulate a previously received message
+    manager.getEntry(sessionId).seenNonces.add(nonceKey);
+
+    const securityEvents = [];
+    manager.on('security', (_id, reason) => securityEvents.push(reason));
+
+    transports[0].simulateMessage(ciphertext);
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(securityEvents).toHaveLength(1);
+    expect(securityEvents[0]).toMatch(/Duplicate nonce/i);
   });
 });

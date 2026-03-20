@@ -13,16 +13,27 @@ import { InvalidInviteError } from '../../shared/errors/AppErrors.js';
 
 const STORAGE_INDEX_KEY = 'session_ids';
 const sessionStorageKey = (id) => `session:${id}`;
+const secretStorageKey = (id) => `secret:${id}`;
 const messagesStorageKey = (id) => `messages:${id}`;
+const SECRET_WRAP_SALT_KEY = 'secret_wrap_salt';
 
 export class SessionManager {
-  constructor({ crypto, signaling, identity, storage, createTransport }) {
+  constructor({ crypto, signaling, identity, storage, createTransport, persistSecrets = false, secretPassphrase = null }) {
     this._crypto = crypto;
     this._signaling = signaling;
     this._identity = identity;
     this._storage = storage;
     this._createTransport = createTransport;
     this._iceConfig = {}; // forwarded to createTransport as extra opts
+    this._persistSecrets = persistSecrets && typeof secretPassphrase === 'string' && secretPassphrase.length > 0;
+    this._secretPassphrase = this._persistSecrets ? secretPassphrase : null;
+    this._secretWrapKeyPromise = null;
+
+    if (persistSecrets && !this._persistSecrets) {
+      console.warn('[SessionManager] Secret persistence is disabled unless a passphrase is provided.');
+    } else if (this._persistSecrets) {
+      console.warn('[SessionManager] Secret persistence is enabled. Session keys are stored on this device and should be protected with the passphrase.');
+    }
 
     // Map<sessionId, { session, transport, keyPair, privateKeyJwk, messages, pendingSignal }>
     this._entries = new Map();
@@ -32,6 +43,29 @@ export class SessionManager {
   /** Set ICE override options (iceServers, iceTransportPolicy) for future transports. */
   setIceConfig(config) {
     this._iceConfig = config;
+  }
+
+  isSecretPersistenceEnabled() {
+    return this._persistSecrets;
+  }
+
+  async enableSecretPersistence(secretPassphrase) {
+    if (typeof secretPassphrase !== 'string' || secretPassphrase.trim().length < 16) {
+      throw new Error('Passphrase must be at least 16 characters');
+    }
+    this._persistSecrets = true;
+    this._secretPassphrase = secretPassphrase.trim();
+    this._secretWrapKeyPromise = null;
+    for (const sessionId of this._entries.keys()) {
+      await this._persistSession(sessionId);
+    }
+  }
+
+  async clearPersistedData() {
+    this._persistSecrets = false;
+    this._secretPassphrase = null;
+    this._secretWrapKeyPromise = null;
+    await this._storage.clear();
   }
 
   // ── Events ──
@@ -56,26 +90,35 @@ export class SessionManager {
     for (const id of ids) {
       const data = await this._storage.load(sessionStorageKey(id));
       if (!data) continue;
-      const { session, privateKeyJwk } = Session.fromSerializable(data);
-
-      if (data.sharedKey && this._crypto.importSharedKey) {
+      const { session } = Session.fromSerializable(data);
+      let secretData = null;
+      if (this._persistSecrets) {
         try {
-          session.sharedKey = await this._crypto.importSharedKey(data.sharedKey);
+          secretData = await this._decryptSecretState(await this._storage.load(secretStorageKey(id)));
+        } catch {
+          secretData = null;
+        }
+      }
+
+      if (secretData?.sharedKey && this._crypto.importSharedKey) {
+        try {
+          session.sharedKey = await this._crypto.importSharedKey(secretData.sharedKey);
         } catch {
           // Can't restore shared key; reconnect flow will regenerate it.
         }
       }
 
-      // Re-derive sharedKey if we have the crypto material
+      // Re-derive sharedKey if we have the wrapped crypto material
       if (
         !session.sharedKey &&
+        this._persistSecrets &&
         this._crypto.handshakeMode === 'dh' &&
-        privateKeyJwk &&
+        secretData?.privateKeyJwk &&
         session.remoteIdentity
       ) {
         try {
           if (this._crypto.importPrivateKey && this._crypto.deriveSharedKey) {
-            const privateKey = await this._crypto.importPrivateKey(privateKeyJwk);
+            const privateKey = await this._crypto.importPrivateKey(secretData.privateKeyJwk);
             const remotePublicKey = await this._crypto.importPublicKey(
               session.remoteIdentity.publicKeyJwk,
             );
@@ -89,12 +132,19 @@ export class SessionManager {
         }
       }
 
+      if (secretData) {
+        if (secretData.sendChainKey) session.sendChainKey = decode(secretData.sendChainKey);
+        if (secretData.receiveChainKey) session.receiveChainKey = decode(secretData.receiveChainKey);
+        if (secretData.rootKey) session.rootKey = decode(secretData.rootKey);
+        if (secretData.dhRatchetPrivateKeyJwk) session.dhRatchetPrivateKeyJwk = secretData.dhRatchetPrivateKeyJwk;
+      }
+
       const messages = (await this._storage.load(messagesStorageKey(id))) ?? [];
       this._entries.set(id, {
         session,
         transport: null,
         keyPair: null,
-        privateKeyJwk,
+        privateKeyJwk: secretData?.privateKeyJwk ?? null,
         messages,
         seenNonces: new Set(),
         pendingSignal: data.pendingSignal ?? null,
@@ -117,23 +167,25 @@ export class SessionManager {
       }
     }
 
-    let sharedKey = null;
-    if (entry.session.sharedKey && this._crypto.exportSharedKey) {
-      try {
-        sharedKey = await this._crypto.exportSharedKey(entry.session.sharedKey);
-      } catch {
-        // Non-exportable session key
-      }
-    }
-
     await this._storage.save(
       sessionStorageKey(id),
       {
-        ...entry.session.toSerializable(privateKeyJwk),
-        sharedKey,
+        ...entry.session.toSerializable(),
         pendingSignal: entry.pendingSignal ?? null,
       },
     );
+
+    if (this._persistSecrets) {
+      const secretState = await this._buildSecretState(entry, privateKeyJwk);
+      if (secretState) {
+        await this._storage.save(secretStorageKey(id), await this._encryptSecretState(secretState));
+      } else {
+        await this._storage.remove(secretStorageKey(id));
+      }
+    } else {
+      await this._storage.remove(secretStorageKey(id));
+    }
+
     await this._storage.save(messagesStorageKey(id), entry.messages);
 
     // Update index
@@ -143,9 +195,99 @@ export class SessionManager {
 
   async _removePersistedSession(id) {
     await this._storage.remove(sessionStorageKey(id));
+    await this._storage.remove(secretStorageKey(id));
     await this._storage.remove(messagesStorageKey(id));
     const ids = [...this._entries.keys()].filter((k) => k !== id);
     await this._storage.save(STORAGE_INDEX_KEY, ids);
+  }
+
+  async _getSecretWrapKey() {
+    if (!this._persistSecrets) return null;
+    if (!this._secretWrapKeyPromise) {
+      this._secretWrapKeyPromise = (async () => {
+        const encoder = new TextEncoder();
+        let salt = await this._storage.load(SECRET_WRAP_SALT_KEY);
+        if (typeof salt === 'string') {
+          salt = decode(salt);
+        }
+        if (!(salt instanceof Uint8Array) || salt.length === 0) {
+          salt = crypto.getRandomValues(new Uint8Array(16));
+          await this._storage.save(SECRET_WRAP_SALT_KEY, encode(salt));
+        }
+        const passphraseKey = await crypto.subtle.importKey(
+          'raw',
+          encoder.encode(this._secretPassphrase),
+          'PBKDF2',
+          false,
+          ['deriveKey'],
+        );
+        return crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+          passphraseKey,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt', 'decrypt'],
+        );
+      })();
+    }
+    return this._secretWrapKeyPromise;
+  }
+
+  async _buildSecretState(entry, privateKeyJwk) {
+    const secretState = {
+      privateKeyJwk: privateKeyJwk ?? null,
+      sendChainKey: entry.session.sendChainKey ? encode(entry.session.sendChainKey) : null,
+      receiveChainKey: entry.session.receiveChainKey ? encode(entry.session.receiveChainKey) : null,
+      rootKey: entry.session.rootKey ? encode(entry.session.rootKey) : null,
+      sharedKey: null,
+      dhRatchetPrivateKeyJwk: entry.session.dhRatchetPrivateKeyJwk ?? null,
+    };
+
+    if (entry.session.sharedKey && this._crypto.exportSharedKey) {
+      try {
+        secretState.sharedKey = await this._crypto.exportSharedKey(entry.session.sharedKey);
+      } catch {
+        secretState.sharedKey = null;
+      }
+    }
+
+    if (
+      !secretState.privateKeyJwk &&
+      !secretState.sharedKey &&
+      !secretState.sendChainKey &&
+      !secretState.receiveChainKey &&
+      !secretState.rootKey &&
+      !secretState.dhRatchetPrivateKeyJwk
+    ) {
+      return null;
+    }
+
+    return secretState;
+  }
+
+  async _encryptSecretState(secretState) {
+    const wrapKey = await this._getSecretWrapKey();
+    if (!wrapKey) return null;
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const plaintext = new TextEncoder().encode(JSON.stringify(secretState));
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrapKey, plaintext);
+    return {
+      v: 1,
+      iv: encode(iv),
+      data: encode(new Uint8Array(ciphertext)),
+    };
+  }
+
+  async _decryptSecretState(record) {
+    if (!record || typeof record !== 'object' || record.v !== 1) return null;
+    const wrapKey = await this._getSecretWrapKey();
+    if (!wrapKey) return null;
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: decode(record.iv) },
+      wrapKey,
+      decode(record.data),
+    );
+    return JSON.parse(new TextDecoder().decode(plaintext));
   }
 
   // ── Session Lifecycle ──
@@ -686,6 +828,19 @@ export class SessionManager {
         /* ignore */
       }
     }
+    // Zero raw key material so GC can reclaim it promptly and it doesn't
+    // linger in memory after the session is gone.
+    if (entry?.session) {
+      const s = entry.session;
+      if (s.sendChainKey instanceof Uint8Array) s.sendChainKey.fill(0);
+      if (s.receiveChainKey instanceof Uint8Array) s.receiveChainKey.fill(0);
+      if (s.rootKey instanceof Uint8Array) s.rootKey.fill(0);
+      s.sendChainKey = null;
+      s.receiveChainKey = null;
+      s.rootKey = null;
+      s.sharedKey = null;
+      s.dhRatchetPrivateKeyJwk = null;
+    }
     this._entries.delete(sessionId);
     await this._removePersistedSession(sessionId);
     this._emit('update', sessionId);
@@ -842,8 +997,20 @@ export class SessionManager {
         if (envelope.type === 'control') {
           this._handleControl(sessionId, envelope.action, envelope.data);
         }
-      } catch {
-        // Decryption or parse failure — ignore
+      } catch (err) {
+        // Surface detectable security failures as observable events rather than
+        // silently discarding them.  The message itself stays dropped (we don't
+        // crash the session for a single bad packet) but the UI can warn the user.
+        const msg = err?.message ?? '';
+        if (
+          msg.includes('Duplicate nonce') ||
+          msg.includes('Too many skipped') ||
+          msg.includes('replay')
+        ) {
+          this._emit('security', sessionId, msg);
+        }
+        // Generic decryption / parse failures are silently ignored to avoid
+        // leaking timing or oracle information.
       }
     });
   }

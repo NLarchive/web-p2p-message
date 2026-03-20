@@ -34,6 +34,42 @@ describe('ManualCodeSignalingAdapter', () => {
     expect(decoded.sessionId).toBe(answer.sessionId);
   });
 
+  it('encodeAnswer includes a timestamp and decodeAnswer accepts it', async () => {
+    const { decodeJson } = await import('../../../src/shared/encoding/base64url.js');
+    const answer = {
+      sdp: { type: 'answer', sdp: 'v=0\r\n...' },
+      publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'e', y: 'f' },
+      sessionId: 'session-ts',
+    };
+    const encoded = adapter.encodeAnswer(answer);
+    const raw = decodeJson(encoded);
+    expect(typeof raw.t).toBe('number');
+    // decodeAnswer must accept the freshly-encoded answer without throwing
+    expect(() => adapter.decodeAnswer(encoded)).not.toThrow();
+  });
+
+  it('throws SessionExpiredError for expired answer codes', async () => {
+    const { encodeJson } = await import('../../../src/shared/encoding/base64url.js');
+    const expiredAnswer = encodeJson({
+      s: { type: 'answer', sdp: 'v=0' },
+      k: { kty: 'EC', crv: 'P-256', x: 'g', y: 'h' },
+      i: 'session-expired',
+      t: Date.now() - 600_000, // 10 min ago
+    });
+    expect(() => adapter.decodeAnswer(expiredAnswer)).toThrow('expired');
+  });
+
+  it('throws InvalidInviteError for a future answer timestamp', async () => {
+    const { encodeJson } = await import('../../../src/shared/encoding/base64url.js');
+    const futureAnswer = encodeJson({
+      s: { type: 'answer', sdp: 'v=0' },
+      k: { kty: 'EC', crv: 'P-256', x: 'i', y: 'j' },
+      i: 'session-future',
+      t: Date.now() + 120_000,
+    });
+    expect(() => adapter.decodeAnswer(futureAnswer)).toThrow(/timestamp|future/i);
+  });
+
   it('throws InvalidInviteError for garbage input', () => {
     expect(() => adapter.decodeOffer('not-valid-base64!!!')).toThrow(
       'Could not decode',

@@ -44,13 +44,14 @@ Protect message confidentiality, protect access to chat sessions, reduce metadat
 
 For the first version, default to minimal retention:
 
-- do not persist long-term private session keys
+- persist only public session metadata and message history by default
 - keep active session secrets in memory when possible
-- if history persistence is added later, make it opt-in and document the local device risk clearly
+- if secret persistence is ever enabled, make it opt-in and protect it with a user-supplied passphrase-based wrapping key
+- document the local device risk clearly because any browser-profile access can expose persisted material
 
 ## Post-Quantum Preparation
 
-The MVP is not post-quantum secure. It should not claim that it is.
+The current implementation includes a hybrid post-quantum handshake, but it is not production-audited. It should not be marketed as quantum-safe.
 
 The project should instead be post-quantum ready at the architecture level:
 
@@ -96,24 +97,24 @@ This idea is explicitly rejected as a design direction for this project.
 
 ### Recommended approach: Tor or VPN at the OS/network layer
 
-The correct way to hide your real IP in a WebRTC session is to route all traffic through Tor or a VPN **before** it reaches the browser:
+The correct way to hide your real IP in a WebRTC session is to route all traffic through a VPN, or use an expert-managed Tor setup with WebRTC and a TCP relay, **before** the traffic reaches the browser:
 
-- When Tor Browser is used with WebRTC enabled (in a safe configuration), or when the OS routes all traffic through Tor, the peer and network only see the Tor exit IP.
-- A VPN achieves the same at the ISP level; the peer sees the VPN server IP.
+- A VPN hides your real IP from peers; the peer sees the VPN server IP.
+- Expert Tor/Tails/Whonix setups can do the same if WebRTC is explicitly enabled and all traffic is forced through a TCP TURN relay.
 - The app does not need to change at all — the IP hiding is transparent at the network layer.
 
-This app detects whether WebRTC is disabled (typical of Tor Browser) by attempting a local ICE candidate gather with no STUN servers. If no candidates are found or `RTCPeerConnection` is unavailable, the app shows a "Tor Browser detected" badge. No external network request is made — detection is fully local and IP-blind.
+This app detects whether WebRTC is disabled by attempting a local ICE candidate gather with no STUN servers. If no candidates are found or `RTCPeerConnection` is unavailable, the app shows a privacy guidance message. No external network request is made — detection is fully local and IP-blind.
 
-**Guidance for users who need IP anonymity:**
+**Guidance for users who need IP privacy:**
 
-1. Use Tor Browser (with WebRTC enabled per Tor Project guidance), or
-2. Enable a trusted VPN before opening the app, then verify the "Using Tor / VPN" indicator.
+1. Use a trusted VPN before opening the app, then verify the privacy indicator.
+2. If you are an advanced Tor/Tails/Whonix user, follow Tor Project guidance, enable WebRTC explicitly, and configure a TCP TURN relay.
 
 ### Residual risks
 
-- Even through Tor, WebRTC timing and traffic patterns may be observable by a sufficiently resourced adversary.
 - A VPN provider can observe your real IP; choose accordingly.
-- Both peers expose their exit IP to each other unless both route through Tor/VPN simultaneously.
+- Even in advanced Tor/Tails/Whonix setups, WebRTC timing and traffic patterns may be observable by a sufficiently resourced adversary.
+- Both peers expose their exit IP to each other unless both route through the same anonymity layer simultaneously.
 - This app does not and cannot force either party to use Tor or a VPN.
 
 ## DoS and Resource Exhaustion Hardening

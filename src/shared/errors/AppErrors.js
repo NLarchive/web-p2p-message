@@ -47,3 +47,10 @@ export class ValidationError extends AppError {
     this.name = 'ValidationError';
   }
 }
+
+export class RatchetError extends AppError {
+  constructor(message = 'Ratchet operation failed') {
+    super(message, 'RATCHET_ERROR');
+    this.name = 'RatchetError';
+  }
+}

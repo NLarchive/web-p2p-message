@@ -58,7 +58,8 @@ This path keeps the first implementation small and understandable while preservi
 - exchange encrypted one-to-one messages over WebRTC DataChannels using AES-GCM
 - compare peer fingerprints in the UI with verified/unverified status tracking
 - fingerprint change detection with blocking warning on reconnect (auto-resets verification)
-- network privacy indicator via local WebRTC probe (Tor Browser detection, no external requests)
+- network privacy guidance via local WebRTC probe; recommends a mainstream browser + system VPN for the default path, and flags Tor/Tails/Whonix as advanced setups
+- optional TURN relay configuration for relay-only ICE when WebRTC is enabled in advanced privacy setups
 - transport-level DoS hardening: 32 KB max incoming payload, 30 msg/s rate limit per DataChannel
 - strict CSP: no unsafe-inline directives, connect-src restricted to self
 - toast error/success notifications (replaces static error text)
@@ -132,7 +133,7 @@ https://nlarchive.github.io/web-p2p-message/
 
 Three-layer automated test suite:
 
-**Unit & Integration (145 tests via Vitest):**
+**Unit & Integration (163 tests via Vitest):**
 - domain rules and state transitions
 - encoding and validation helpers
 - crypto, signaling, storage, and identity adapters
@@ -195,6 +196,7 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - manual signaling requires copying codes between peers (trade-off for zero-server architecture)
 - one-to-one chat only (no group support)
 - browser interoperability testing is narrower than production standards
+- Tor Browser is not the default supported privacy path; it requires advanced WebRTC/TURN configuration and can expose IPs if misconfigured
 - post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
 
 ## Recent Security Fixes (Current)
@@ -212,7 +214,8 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **Transport DoS hardening:** 32 KB max incoming message size and 30 msg/s sliding-window rate limit per WebRTC DataChannel; oversized or excess messages silently dropped
 - **Fingerprint verification state:** Session domain tracks `fingerprintVerified` and `_previousRemoteFingerprint`; UI shows verified/unverified badge; fingerprint change on reconnect auto-resets verification and shows a blocking warning
 - **CSP tightened:** removed `unsafe-inline` from `style-src`, added `connect-src 'self'`
-- **Local privacy probe:** replaced external `check.torproject.org` fetch with a local `RTCPeerConnection` probe — detects Tor Browser without any network request
+- **Local privacy probe:** replaced external `check.torproject.org` fetch with a local `RTCPeerConnection` probe — no network request, and the UI now frames VPN as the recommended default while keeping Tor/Tails/Whonix as an advanced path
+- **TURN relay support:** added optional relay-only ICE configuration for advanced users who enable WebRTC and want TCP relay transport
 - **Branch sync:** `main` and `master` now point to identical commits; older GitHub file views showed stale `master` until force-push
 
 ## Notes

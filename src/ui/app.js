@@ -746,6 +746,7 @@ function showSessionDetail(sessionId) {
   const isPending = s.status === SessionStatus.AWAITING_ANSWER ||
     s.status === SessionStatus.AWAITING_FINALIZE ||
     s.status === SessionStatus.CONNECTING;
+  const persistenceEnabled = manager.isSecretPersistenceEnabled?.() ?? false;
 
   const fpChanged = s._previousRemoteFingerprint && s.remoteIdentity &&
     s._previousRemoteFingerprint !== s.remoteIdentity.fingerprint;
@@ -776,6 +777,19 @@ function showSessionDetail(sessionId) {
         <input type="text" id="edit-title" value="${escapeHtml(s.title || '')}" placeholder="Set title…" autocomplete="off" />
         <button id="btn-save-title">Save</button>
       </div>
+    </div>
+    <div class="card">
+      <label class="field-label">Local Persistence</label>
+      <p class="status fs-sm">${persistenceEnabled ? 'Encrypted local persistence is enabled for this browser profile.' : 'By default, only public session metadata is stored. Secrets are kept in memory unless you opt in.'}</p>
+      ${!persistenceEnabled ? `<p class="status fs-xs warn-text">⚠️ Enabling persistence writes encrypted session keys to disk. If this device is later compromised, those keys may be accessible.</p>` : ''}
+      <p class="status fs-xs text-muted">This affects only your browser. Your peer chooses their own storage policy independently.</p>
+      <label class="field-label mt-sm">Passphrase for encrypted local copy</label>
+      <input type="password" id="persistence-passphrase" placeholder="At least 16 characters" autocomplete="off" />
+      <div class="actions mt-sm">
+        <button id="btn-enable-persistence">Save encrypted copy</button>
+        <button id="btn-clear-persistence" class="btn-outline">Clear local data</button>
+      </div>
+      <p class="status fs-xs text-muted mt-sm">Clearing local data deletes stored session records and TURN settings from this browser. Active session state stays in memory until you reload the page.</p>
     </div>
     <div class="actions">
       ${isDisconnected ? `<button id="btn-retry" class="btn-retry">Reconnect</button>` : ''}
@@ -810,6 +824,34 @@ function showSessionDetail(sessionId) {
       s.fingerprintVerified = false;
       await manager._persistSession(sessionId);
       showSessionDetail(sessionId);
+    });
+  }
+  if ($('#btn-enable-persistence')) {
+    $('#btn-enable-persistence').addEventListener('click', async () => {
+      const passphrase = $('#persistence-passphrase').value.trim();
+      if (passphrase.length < 16) {
+        return showError('Passphrase must be at least 16 characters');
+      }
+      try {
+        await manager.enableSecretPersistence(passphrase);
+        showSuccess('Encrypted local persistence enabled');
+        showSessionDetail(sessionId);
+      } catch (error) {
+        showError(error.message);
+      }
+    });
+  }
+  if ($('#btn-clear-persistence')) {
+    $('#btn-clear-persistence').addEventListener('click', async () => {
+      if (!confirm('Clear all local session data and TURN settings from this browser? Active connections will remain until refresh.')) return;
+      try {
+        await manager.clearPersistedData();
+        localStorage.removeItem(TURN_STORAGE_KEY);
+        showSuccess('Local persistence cleared');
+        showSessionList();
+      } catch (error) {
+        showError(error.message);
+      }
     });
   }
   if ($('#btn-retry')) {
@@ -864,6 +906,7 @@ function showChat(sessionId) {
         Peer: <span class="fingerprint fingerprint-sm">${s.remoteIdentity.fingerprint}</span>
         <span class="fp-badge ${s.fingerprintVerified ? 'fp-verified' : 'fp-unverified'}">${s.fingerprintVerified ? '✔ Verified' : 'Unverified'}</span>
       </p>
+      ${!s.fingerprintVerified ? `<p class="status fs-xs warn-text">⚠️ Compare this fingerprint with your peer by phone, in person, or via a different app — not through this chat.</p>` : ''}
     </div>` : ''}
     <ul class="messages" id="msg-list"></ul>
     <div class="send-bar">
@@ -982,6 +1025,9 @@ async function boot() {
   manager.on('update', onSessionUpdate);
   manager.on('message', onMessage);
   manager.on('control', onControl);
+  manager.on('security', (_sessionId, reason) => {
+    showToast(`⚠️ Security event: ${reason}`, 'warning', 8000);
+  });
 
   if (router) {
     // Wait for the SharedWorker to confirm it is operational before showing the

@@ -28,4 +28,5 @@ Report security concerns privately to the project owner first. Include:
 - encryption is end-to-end between peers after handshake completion
 - signaling is manual and not authenticated beyond fingerprint comparison
 - persistent identity and post-quantum cryptography are not part of the MVP
+- session deletion zeroizes Uint8Array key buffers best-effort; managed-runtime GC timing is not deterministic
 - browser compatibility and production hardening are still limited compared with a mature messaging product

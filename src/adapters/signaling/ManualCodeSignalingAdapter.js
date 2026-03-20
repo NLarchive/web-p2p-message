@@ -59,7 +59,7 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
   }
 
   encodeAnswer({ sdp, publicKeyJwk, sessionId, cipherText, dhRatchetPublicKeyJwk }) {
-    const payload = { s: sdp, k: publicKeyJwk, i: sessionId };
+    const payload = { s: sdp, k: publicKeyJwk, i: sessionId, t: Date.now() };
     if (cipherText) payload.c = cipherText;
     if (dhRatchetPublicKeyJwk) payload.rp = dhRatchetPublicKeyJwk;
     return encodeJson(payload);
@@ -74,6 +74,11 @@ export class ManualCodeSignalingAdapter extends ISignalingPort {
     }
     if (!data.s || !data.k || !data.i) {
       throw new InvalidInviteError('Answer is missing required fields');
+    }
+    if (data.t !== undefined) {
+      const tsError = validateTimestamp(data.t);
+      if (tsError) throw new InvalidInviteError(`Invalid answer timestamp: ${tsError}`);
+      if (isExpired(data.t)) throw new SessionExpiredError('Answer code has expired');
     }
     return {
       sdp: data.s,

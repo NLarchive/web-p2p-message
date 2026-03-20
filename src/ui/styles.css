@@ -10,6 +10,7 @@
   --accent-hover: #8ba3ff;
   --danger: #ff6b6b;
   --success: #51cf66;
+  --warn: #f59f00;
   --mono: 'Menlo', 'Consolas', 'Liberation Mono', monospace;
 }
 
@@ -341,6 +342,10 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
   border-color: var(--success);
   color: var(--success);
 }
+.toast-warning {
+  border-color: var(--warn);
+  color: var(--warn);
+}
 
 /* ── Network privacy indicator ── */
 .privacy-status {
@@ -402,6 +407,10 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
   border-color: var(--danger);
   background: rgba(255, 107, 107, 0.08);
   color: var(--danger);
+}
+.warn-text {
+  color: var(--warn);
+  margin-top: 0.35rem;
 }
 
 /* ── Retry / reconnect button ── */

@@ -177,8 +177,17 @@ describe('Session', () => {
     s._lastReceivedCounter = 3;
     s.status = SessionStatus.CONNECTED;
 
-    const data = s.toSerializable({ kty: 'EC', d: 'privateData' });
-    const { session: restored, privateKeyJwk } = Session.fromSerializable(data);
+    const data = s.toSerializable();
+    expect(data.privateKeyJwk).toBeUndefined();
+    expect(data.rootKey).toBeUndefined();
+    expect(data.sendChainKey).toBeUndefined();
+    expect(data.receiveChainKey).toBeUndefined();
+
+    const secretData = s.toSerializable({ includeSecrets: true, privateKeyJwk: { kty: 'EC', d: 'privateData' } });
+    expect(secretData.privateKeyJwk.d).toBe('privateData');
+    expect(secretData.rootKey).toBeNull();
+
+    const { session: restored, privateKeyJwk } = Session.fromSerializable(secretData, { includeSecrets: true });
 
     expect(restored.id).toBe('ser');
     expect(restored.role).toBe('host');
@@ -193,8 +202,21 @@ describe('Session', () => {
   it('restores disconnected sessions as disconnected', () => {
     const s = new Session({ id: 'disc', role: 'guest' });
     s.status = SessionStatus.DISCONNECTED;
-    const data = s.toSerializable(null);
+    const data = s.toSerializable();
     const { session: restored } = Session.fromSerializable(data);
     expect(restored.status).toBe(SessionStatus.DISCONNECTED);
+  });
+
+  it('omits secret material from default serialization', () => {
+    const s = new Session({ id: 'pub', role: 'host' });
+    s.rootKey = new Uint8Array([1, 2, 3]);
+    s.sendChainKey = new Uint8Array([4, 5, 6]);
+    s.receiveChainKey = new Uint8Array([7, 8, 9]);
+    s.dhRatchetPrivateKeyJwk = { kty: 'EC', d: 'secret' };
+    const data = s.toSerializable();
+    expect(data.rootKey).toBeUndefined();
+    expect(data.sendChainKey).toBeUndefined();
+    expect(data.receiveChainKey).toBeUndefined();
+    expect(data.dhRatchetPrivateKeyJwk).toBeUndefined();
   });
 });
