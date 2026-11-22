@@ -7,6 +7,20 @@ const CONNECT_TIMEOUT = 30_000;
 const MSG_TIMEOUT = 10_000;
 
 test.describe('P2P chat — two peers', () => {
+  test('host creates an invite without SharedWorker support', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'SharedWorker', { value: undefined });
+    });
+
+    await page.goto('/');
+    await page.click('#btn-create');
+    await page.click('#btn-start-create');
+
+    await expect(page.locator('#invite-code')).not.toHaveValue('', {
+      timeout: ICE_TIMEOUT,
+    });
+  });
+
   test('connect and exchange messages in both directions', async ({
     browser,
   }) => {

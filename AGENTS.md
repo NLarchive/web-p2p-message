@@ -2,15 +2,18 @@ project structure"""
 D:\web\web-p2p-message\.github
 D:\web\web-p2p-message\dist
 D:\web\web-p2p-message\docs
+D:\web\web-p2p-message\message-interceptor
 D:\web\web-p2p-message\node_modules
 D:\web\web-p2p-message\playwright-report
-D:\web\web-p2p-message\playwright-report\index.html
 D:\web\web-p2p-message\scripts
 D:\web\web-p2p-message\scripts\build.mjs
+D:\web\web-p2p-message\scripts\hash-importmap.mjs
 D:\web\web-p2p-message\scripts\preview.mjs
 D:\web\web-p2p-message\scripts\serve-e2e.mjs
 D:\web\web-p2p-message\scripts\smoke-test.mjs
 D:\web\web-p2p-message\scripts\test-ci.mjs
+D:\web\web-p2p-message\scripts\vendor.mjs
+D:\web\web-p2p-message\scripts\verify-hash.mjs
 D:\web\web-p2p-message\src
 D:\web\web-p2p-message\src\adapters
 D:\web\web-p2p-message\src\adapters\crypto
@@ -70,6 +73,7 @@ D:\web\web-p2p-message\test-results
 D:\web\web-p2p-message\tests
 D:\web\web-p2p-message\tests\adapters
 D:\web\web-p2p-message\tests\adapters\crypto
+D:\web\web-p2p-message\tests\adapters\crypto\HybridPqCryptoAdapter.test.js
 D:\web\web-p2p-message\tests\adapters\crypto\WebCryptoEcdhAesGcm.test.js
 D:\web\web-p2p-message\tests\adapters\identity
 D:\web\web-p2p-message\tests\adapters\identity\EphemeralIdentityAdapter.test.js
@@ -108,6 +112,8 @@ D:\web\web-p2p-message\tests\shared\encoding\base64url.test.js
 D:\web\web-p2p-message\tests\shared\validation
 D:\web\web-p2p-message\tests\shared\validation\constraints.test.js
 D:\web\web-p2p-message\tests\setup.js
+D:\web\web-p2p-message\vendor
+D:\web\web-p2p-message\.gitattributes
 D:\web\web-p2p-message\.gitignore
 D:\web\web-p2p-message\AGENTS.md
 D:\web\web-p2p-message\CONTRIBUTING.md

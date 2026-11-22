@@ -5,7 +5,7 @@
 - Domain: Session (state machine), Message, PeerIdentity, Envelope (msg/control protocol)
 - Services: SessionManager (multi-session orchestrator, `src/core/services/`)
 - Adapters: WebCrypto, WebRTC, IndexedDB, Manual signaling, Ephemeral identity
-- Composition root: `createSessionService()` (legacy single-session), `createSessionManager()` (multi-session)
+- Composition root: `createSessionManager()` (multi-session)
 
 ## Key Patterns
 - Each session has its own WebRTC transport instance

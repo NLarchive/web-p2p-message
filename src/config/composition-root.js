@@ -4,6 +4,7 @@ import { ManualCodeSignalingAdapter } from '../adapters/signaling/ManualCodeSign
 import { MemoryStorageAdapter } from '../adapters/storage/MemoryStorageAdapter.js';
 import { IndexedDbStorageAdapter } from '../adapters/storage/IndexedDbStorageAdapter.js';
 import { SharedWorkerTransportAdapter } from '../adapters/transport/SharedWorkerTransportAdapter.js';
+import { WebRtcTransportAdapter } from '../adapters/transport/WebRtcTransportAdapter.js';
 import { SessionManager } from '../core/services/SessionManager.js';
 
 /**
