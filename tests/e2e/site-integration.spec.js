@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Portfolio integration — live demo page', () => {
   test('footer links to the source code and to NLarchive', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await expect(page.locator('#btn-create')).toBeVisible();
     const brand = page.locator('#brand-link');
     await expect(brand).toHaveText('Built by NLarchive');
@@ -15,7 +15,7 @@ test.describe('Portfolio integration — live demo page', () => {
   });
 
   test('head exposes description, canonical, Open Graph and JSON-LD', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await expect(page).toHaveTitle(/P2P Message/);
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /encrypted/i);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://nlarchive.github.io/web-p2p-message/');
@@ -32,14 +32,14 @@ test.describe('Portfolio integration — live demo page', () => {
     page.on('console', (msg) => {
       if (/Content Security Policy|Refused to/i.test(msg.text())) violations.push(msg.text());
     });
-    await page.goto('/');
+    await page.goto('./');
     await expect(page.locator('#btn-create')).toBeVisible();
     await page.waitForTimeout(500);
     expect(violations).toEqual([]);
   });
 
   test('app refuses to run inside a frame (clickjacking guard)', async ({ page, baseURL }) => {
-    await page.setContent(`<iframe id="victim" src="${baseURL}/" width="800" height="600"></iframe>`);
+    await page.setContent(`<iframe id="victim" src="${baseURL}" width="800" height="600"></iframe>`);
     const frame = page.frameLocator('#victim');
     await expect(frame.locator('#framed-warning')).toBeVisible();
     await expect(frame.locator('#btn-create')).toHaveCount(0);
