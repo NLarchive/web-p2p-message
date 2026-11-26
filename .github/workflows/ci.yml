@@ -60,7 +60,7 @@ jobs:
           - browser: firefox
             runner: ubuntu-24.04
           - browser: webkit
-            runner: macos-15-intel
+            runner: macos-15
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
@@ -80,5 +80,41 @@ jobs:
         run: npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Run E2E chat tests
+        if: matrix.browser == 'firefox'
         run: npx playwright test --project=${{ matrix.browser }}
+
+      - name: Install the local TURN fixture
+        if: matrix.browser == 'webkit'
+        run: brew install coturn
+
+      - name: Run WebKit E2E with the local TURN fixture
+        if: matrix.browser == 'webkit'
+        shell: bash
+        run: |
+          interface=$(route -n get default | awk '/interface:/ { print $2 }')
+          relay_ip=$(ipconfig getifaddr "$interface")
+          export WEBKIT_TEST_TURN_URL='turn:127.0.0.1:3478?transport=tcp'
+          WEBKIT_TEST_TURN_PASSWORD=$(openssl rand -hex 16)
+          export WEBKIT_TEST_TURN_PASSWORD
+          echo "::add-mask::$WEBKIT_TEST_TURN_PASSWORD"
+
+          # Only this runner can connect to the listener or act as a TURN peer.
+          turnserver -n --listening-ip=127.0.0.1 --relay-ip="$relay_ip" \
+            --listening-port=3478 --min-port=49160 --max-port=49200 \
+            --allowed-peer-ip="$relay_ip" --denied-peer-ip=0.0.0.0-255.255.255.255 \
+            --no-cli --no-tls --no-dtls --no-stun --no-stdout-log \
+            --log-file="$RUNNER_TEMP/coturn.log" --pidfile="$RUNNER_TEMP/coturn.pid" \
+            --lt-cred-mech --realm=p2p-message.test --user="playwright:$WEBKIT_TEST_TURN_PASSWORD" &
+          turn_pid=$!
+          trap 'kill "$turn_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if nc -z 127.0.0.1 3478; then
+              npx playwright test --project=webkit
+              exit
+            fi
+            kill -0 "$turn_pid"
+            sleep 1
+          done
+          echo 'The local TURN fixture did not start' >&2
+          exit 1
 

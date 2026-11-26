@@ -259,7 +259,7 @@
     {
       "task_id": "TST-004",
       "task_name": "Add Firefox and WebKit projects",
-      "description": "Run all 9 scenarios in Firefox on Ubuntu 24.04 and Playwright WebKit on macOS 15.",
+      "description": "Run all 9 scenarios in Firefox on Ubuntu 24.04 and Playwright WebKit on macOS 15 with a runner-local TURN relay.",
       "start_date": null,
       "end_date": "2026-11-26",
       "due_date": null,
@@ -296,7 +296,8 @@
         "success_signal": "All projects pass",
         "evidence": [
           "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15.",
-          "2026-11-26 CI passed all 9 scenarios on Firefox (Ubuntu 24.04) and Playwright WebKit (macOS 15), alongside Chromium. https://github.com/NLarchive/web-p2p-message/actions/runs/45909039621"
+          "2026-11-26 CI passed all 9 scenarios on Firefox (Ubuntu 24.04) and Playwright WebKit (macOS 15), alongside Chromium. https://github.com/NLarchive/web-p2p-message/actions/runs/45909039621",
+          "2026-11-26 Intel WebKit reproduced both ARM connection timeouts. The runner-local TURN fixture uses the app's existing relay mode and leaves Chromium and Firefox on direct peer connections. https://github.com/NLarchive/web-p2p-message/actions/runs/45910405977"
         ]
       },
       "dependencies": [

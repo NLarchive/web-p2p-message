@@ -1,6 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.TEST_BASE_URL || 'http://127.0.0.1:4173';
+const webkitTurnURL = process.env.WEBKIT_TEST_TURN_URL;
+const webkitStorageState = webkitTurnURL ? {
+  cookies: [],
+  origins: [{
+    origin: new URL(baseURL).origin,
+    localStorage: [{
+      name: 'p2p:turn-config',
+      value: JSON.stringify({
+        url: webkitTurnURL,
+        username: 'playwright',
+        credential: process.env.WEBKIT_TEST_TURN_PASSWORD,
+      }),
+    }],
+  }],
+} : undefined;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -30,7 +45,7 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { ...devices['Desktop Safari'], storageState: webkitStorageState },
     },
   ],
 });

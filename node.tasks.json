@@ -669,7 +669,7 @@
     {
       "task_id": "P2P-009",
       "task_name": "Cover Firefox and WebKit in E2E",
-      "description": "CI runs all 9 browser scenarios in Chromium, Firefox, and macOS WebKit.",
+      "description": "CI requires all 9 scenarios in Chromium, Firefox, and macOS WebKit. WebKit uses a runner-local TURN relay for peer connections.",
       "start_date": null,
       "end_date": "2026-11-26",
       "due_date": null,
@@ -706,7 +706,8 @@
         "success_signal": "All projects pass.",
         "evidence": [
           "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15 as separate CI jobs.",
-          "2026-11-26 CI passed all 9 scenarios on Firefox (Ubuntu 24.04) and Playwright WebKit (macOS 15), alongside Chromium. https://github.com/NLarchive/web-p2p-message/actions/runs/45909039621"
+          "2026-11-26 CI passed all 9 scenarios on Firefox (Ubuntu 24.04) and Playwright WebKit (macOS 15), alongside Chromium. https://github.com/NLarchive/web-p2p-message/actions/runs/45909039621",
+          "2026-11-26 Direct WebKit peer connections subsequently timed out on ARM and Intel macOS runners. CI now supplies an authenticated runner-local TURN relay to WebKit and retains every scenario and assertion. https://github.com/NLarchive/web-p2p-message/actions/runs/45910405977"
         ]
       },
       "dependencies": [

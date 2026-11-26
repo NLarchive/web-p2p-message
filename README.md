@@ -192,7 +192,7 @@ The project state, open issues and verifiable completion criteria are tracked in
 
 - manual signaling requires copying codes between peers (trade-off for zero-server architecture)
 - one-to-one chat only (no group support)
-- Safari engine coverage uses Playwright WebKit on macOS. The released Safari browser is outside automated coverage.
+- Safari engine coverage uses Playwright WebKit on macOS with an authenticated TURN relay on the CI runner. Chromium and Firefox cover direct peer connections. The released Safari browser is outside automated coverage.
 - the Content Security Policy is a `<meta>` tag (GitHub Pages cannot send headers), so `frame-ancestors` is unavailable; the app refuses to run inside a frame instead
 - Tor Browser is not the default supported privacy path; it requires advanced WebRTC/TURN configuration and can expose IPs if misconfigured
 - post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
