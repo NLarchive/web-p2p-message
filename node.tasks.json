@@ -342,7 +342,7 @@
         "SECURITY.md lists a private reporting channel (GitHub private reporting + contact@nlarchive.com)",
         "Security boundaries describe XWing hybrid handshake, ECDSA-signed invites, meta-CSP limits, IP exposure",
         "Copy never says 'quantum-safe' (docs/security.md rule)",
-        "README Known Limitations mentions Chromium-only tests and meta-CSP"
+        "README documents browser coverage and meta-CSP."
       ],
       "verification": {
         "strategy": "manual",
@@ -529,15 +529,15 @@
         },
         {
           "task_name": "Update .github/copilot/memories/repo/workspace-notes.md counts",
-          "status": "Blocked",
-          "description": "Protected path for the agent. Maintainer: change '104 tests' → '163 tests' and '(3 tests)' → '(9 tests: chat flow + portfolio integration)', or delete the file (internal notes need not be public).",
-          "progress_percentage": 0
+          "status": "Done",
+          "description": "Updated the Vitest and browser scenario counts.",
+          "progress_percentage": 100
         },
         {
           "task_name": "Decide on untracked web-p2p-message.png",
-          "status": "Not Started",
-          "description": "Screenshot shows old test sessions; superseded by src/ui/og-image.png. Delete it or commit it as a README screenshot.",
-          "progress_percentage": 0
+          "status": "Done",
+          "description": "Keep the screenshot locally and ignore it in Git. Use src/ui/og-image.png as the share image.",
+          "progress_percentage": 100
         }
       ],
       "attachments": [],
@@ -547,18 +547,18 @@
     },
     {
       "task_id": "P2P-007",
-      "task_name": "Link the project from nlarchive.com /proyectos/ and /nosotros/",
+      "task_name": "Link P2P Message from the local NLarchive portfolio",
       "description": "Integration target from the brief. /proyectos/: the 'Ingeniería, IA y Código Abierto' section now renders a list (engineering.more) with a P2P Message card (live demo + GitHub). /nosotros/: new 'Código abierto' section (about.open_source) linking the demo, the repo, TAGO and the GitHub org. Organization JSON-LD gets sameAs github.com/NLarchive. Tracked on the site side as NLA-007.",
       "start_date": "2026-11-26",
-      "end_date": null,
+      "end_date": "2026-11-26",
       "due_date": null,
       "priority": "Critical",
-      "status": "In Review",
-      "progress_percentage": 90,
+      "status": "Done",
+      "progress_percentage": 100,
       "estimated_hours": 1.5,
       "actual_hours": 0,
       "complexity": "Medium",
-      "blocker_reason": "Hostinger publication and live verification pending.",
+      "blocker_reason": "",
       "is_critical_path": true,
       "category_name": "Integration",
       "hex_ring": null,
@@ -579,7 +579,7 @@
         "/nosotros/ HTML contains #open-source-title and the 4 links",
         "Organization JSON-LD sameAs includes https://github.com/NLarchive",
         "Copy does not claim 'quantum-safe' and states the handshake is not externally audited",
-        "Published to production and links return 200"
+        "Verify both pages at nlarchive.test. The portfolio integration is local-only per the maintainer."
       ],
       "verification": {
         "strategy": "command",
@@ -588,12 +588,13 @@
           "php -l private/src/layout.php",
           "cd public_html/proyectos && php index.php | grep -c web-p2p-message",
           "cd public_html/nosotros && php index.php | grep -c open-source-title",
-          "curl -s https://www.nlarchive.com/proyectos/ | grep -c nlarchive.github.io/web-p2p-message"
+          "curl -fsS http://nlarchive.test/proyectos/"
         ],
-        "success_signal": "No syntax errors; counts ≥ 1 locally and in production.",
+        "success_signal": "Both .test routes return 200 and show their expected links and content.",
         "evidence": [
           "2026-11-26 php 8 render: /proyectos/ 4/4 expected strings, /nosotros/ 4/4, Organization.sameAs=['https://github.com/NLarchive']",
-          "2026-11-26 Spanish sales copy identifies 172 public tests, a private security suite, and a strict Content Security Policy."
+          "2026-11-26 Spanish sales copy identifies 172 public tests, a private security suite, and a strict Content Security Policy.",
+          "2026-11-26 http://nlarchive.test/proyectos/ and http://nlarchive.test/nosotros/ returned 200. Portfolio copy, links, and Organization.sameAs verified locally."
         ]
       },
       "dependencies": [
@@ -608,7 +609,7 @@
       "attachments": [],
       "links": [],
       "comments": [],
-      "next_step": "Publish with the site's usual deploy (see NLA-003) after P2P-010 so the demo already shows the brand backlink."
+      "next_step": null
     },
     {
       "task_id": "P2P-008",
@@ -668,17 +669,17 @@
     {
       "task_id": "P2P-009",
       "task_name": "Cover Firefox and WebKit in E2E",
-      "description": "All automated browser tests run in Chromium only (now disclosed in README Known Limitations). Add firefox/webkit projects to playwright.config.js and the CI e2e job. Could not be run by the agent: neither environment can download Firefox/WebKit builds. Details: tests/node.tasks.json TST-004.",
+      "description": "CI runs all 9 browser scenarios in Chromium, Firefox, and macOS WebKit.",
       "start_date": null,
-      "end_date": null,
+      "end_date": "2026-11-26",
       "due_date": null,
       "priority": "Medium",
-      "status": "In Review",
-      "progress_percentage": 85,
+      "status": "Done",
+      "progress_percentage": 100,
       "estimated_hours": 3,
       "actual_hours": 0,
       "complexity": "Medium",
-      "blocker_reason": "Firefox and macOS WebKit CI runs pending.",
+      "blocker_reason": "",
       "is_critical_path": false,
       "category_name": "Quality",
       "hex_ring": null,
@@ -704,7 +705,8 @@
         ],
         "success_signal": "All projects pass.",
         "evidence": [
-          "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15 as separate CI jobs."
+          "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15 as separate CI jobs.",
+          "2026-11-26 CI passed all 9 scenarios on Firefox (Ubuntu 24.04) and Playwright WebKit (macOS 15), alongside Chromium. https://github.com/NLarchive/web-p2p-message/actions/runs/45909039621"
         ]
       },
       "dependencies": [
@@ -720,7 +722,7 @@
       "links": [],
       "comments": [],
       "child_graph": "tests/node.tasks.json",
-      "next_step": "Check the result of both browser jobs and make them required once they pass."
+      "next_step": null
     },
     {
       "task_id": "P2P-010",

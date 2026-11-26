@@ -259,17 +259,17 @@
     {
       "task_id": "TST-004",
       "task_name": "Add Firefox and WebKit projects",
-      "description": "Add projects to playwright.config.js and install the browsers in CI (npx playwright install --with-deps chromium firefox webkit). Start as a non-blocking CI job (continue-on-error) until WebRTC loopback behaviour is confirmed per engine.",
+      "description": "Run all 9 scenarios in Firefox on Ubuntu 24.04 and Playwright WebKit on macOS 15.",
       "start_date": null,
-      "end_date": null,
+      "end_date": "2026-11-26",
       "due_date": null,
       "priority": "High",
-      "status": "In Review",
-      "progress_percentage": 85,
+      "status": "Done",
+      "progress_percentage": 100,
       "estimated_hours": 3,
       "actual_hours": 0,
       "complexity": "Medium",
-      "blocker_reason": "Firefox and macOS WebKit CI runs pending.",
+      "blocker_reason": "",
       "is_critical_path": false,
       "category_name": "Quality",
       "hex_ring": null,
@@ -295,7 +295,8 @@
         ],
         "success_signal": "All projects pass",
         "evidence": [
-          "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15."
+          "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15.",
+          "2026-11-26 CI passed all 9 scenarios on Firefox (Ubuntu 24.04) and Playwright WebKit (macOS 15), alongside Chromium. https://github.com/NLarchive/web-p2p-message/actions/runs/45909039621"
         ]
       },
       "dependencies": [
@@ -310,7 +311,7 @@
       "attachments": [],
       "links": [],
       "comments": [],
-      "next_step": "Check workflow results for both engines."
+      "next_step": null
     }
   ],
   "navigation": {

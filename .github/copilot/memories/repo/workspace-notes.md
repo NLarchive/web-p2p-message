@@ -18,6 +18,7 @@
 ## Testing
 - `npm test` — Vitest unit and integration tests (163 tests)
 - `npm run test:e2e` — Playwright Chromium tests (9 scenarios) against the preview server
+- CI also runs those 9 scenarios in Firefox on Ubuntu and WebKit on macOS.
 - Preview server: `node scripts/build.mjs && node scripts/preview.mjs` on port 4173
 - Mock helpers in `tests/helpers/` — crypto.subtle.exportKey must be mocked for mock keys
 

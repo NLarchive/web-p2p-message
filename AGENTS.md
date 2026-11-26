@@ -23,6 +23,7 @@ npm ci                 # also vendors @noble/* into /vendor via postinstall
 npm test               # Vitest unit + integration (163 tests)
 npm run test:ci        # unit tests + build + smoke test (what CI runs)
 npm run test:e2e       # Playwright, Chromium, against dist/ (9 tests)
+npx playwright test   # same 9 scenarios per browser in Chromium, Firefox, and WebKit
 npm run test:security  # private interceptor suite (needs message-interceptor/ and `npm run preview`)
 ```
 

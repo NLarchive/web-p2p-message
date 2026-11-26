@@ -144,7 +144,7 @@ Three-layer automated test suite:
 - use case orchestration
 - encrypted end-to-end flow
 
-**End-to-End (9 scenarios via Playwright, Chromium):**
+**End-to-End (9 scenarios):** CI runs Playwright in Chromium, Firefox, and macOS WebKit.
 - complete host and guest chat flow with WebRTC connection and encrypted messages
 - invite creation without SharedWorker support
 - expired invite rejection
@@ -192,7 +192,7 @@ The project state, open issues and verifiable completion criteria are tracked in
 
 - manual signaling requires copying codes between peers (trade-off for zero-server architecture)
 - one-to-one chat only (no group support)
-- automated tests run in Chromium only; Firefox and Safari are not yet covered
+- Safari engine coverage uses Playwright WebKit on macOS. The released Safari browser is outside automated coverage.
 - the Content Security Policy is a `<meta>` tag (GitHub Pages cannot send headers), so `frame-ancestors` is unavailable; the app refuses to run inside a frame instead
 - Tor Browser is not the default supported privacy path; it requires advanced WebRTC/TURN configuration and can expose IPs if misconfigured
 - post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
