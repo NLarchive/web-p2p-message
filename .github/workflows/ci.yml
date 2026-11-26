@@ -60,7 +60,7 @@ jobs:
           - browser: firefox
             runner: ubuntu-24.04
           - browser: webkit
-            runner: macos-15
+            runner: macos-15-intel
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
