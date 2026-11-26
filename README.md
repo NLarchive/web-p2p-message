@@ -1,8 +1,12 @@
 # P2P Message
 
+[![CI](https://github.com/NLarchive/web-p2p-message/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/NLarchive/web-p2p-message/actions/workflows/ci.yml) [![Deploy](https://github.com/NLarchive/web-p2p-message/actions/workflows/deploy-pages.yml/badge.svg?branch=master)](https://github.com/NLarchive/web-p2p-message/actions/workflows/deploy-pages.yml) [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+
 Client-side, browser-to-browser encrypted messaging with minimal external infrastructure. The app uses WebRTC for peer transport, WebCrypto for end-to-end encryption, and a manual code exchange so peers can connect without a backend that stores chat data.
 
-live on: https://nlarchive.github.io/web-p2p-message/
+**Live demo:** https://nlarchive.github.io/web-p2p-message/
+
+Built and maintained by [NLarchive](https://www.nlarchive.com/proyectos/), a software and web development company in Santiago, Chile.
 
 ## Project Status
 
@@ -61,14 +65,14 @@ This path keeps the first implementation small and understandable while preservi
 - network privacy guidance via local WebRTC probe; recommends a mainstream browser + system VPN for the default path, and flags Tor/Tails/Whonix as advanced setups
 - optional TURN relay configuration for relay-only ICE when WebRTC is enabled in advanced privacy setups
 - transport-level DoS hardening: 32 KB max incoming payload, 30 msg/s rate limit per DataChannel
-- strict CSP: no unsafe-inline directives, connect-src restricted to self
+- a strict Content Security Policy with no unsafe-inline directives and connect-src restricted to self
 - toast error/success notifications (replaces static error text)
 - session list search filter (DOM-only, no re-render) when multiple sessions exist
 - one-click clipboard copy with success feedback on all invite/answer codes
 - retry connection and refresh status buttons on the session detail view
 - run comprehensive automated test suite (unit, E2E, security interceptor)
 
-## Planned Repository Structure
+## Repository Structure
 
 ```text
 src/
@@ -94,7 +98,7 @@ scripts/
 
 Requirements:
 
-- Node.js 20 or newer recommended
+- Node.js 20 or newer (CI uses Node 22)
 
 Commands:
 
@@ -140,24 +144,17 @@ Three-layer automated test suite:
 - use case orchestration
 - encrypted end-to-end flow
 
-**End-to-End (4 scenarios via Playwright):**
+**End-to-End (9 scenarios via Playwright, Chromium):**
 - complete host and guest chat flow with WebRTC connection and encrypted messages
+- invite creation without SharedWorker support
 - expired invite rejection
 - garbage invite rejection
 - reconnect flow (host reconnects to existing session)
+- page metadata (description, canonical, Open Graph, JSON-LD) and brand/source links
+- no Content Security Policy violations on load
+- clickjacking guard (the app refuses to run inside a frame)
 
-**Security Interceptor Suite (11 attack techniques):**
-- payload analysis (forbidden key fields: `seed`, `d`, nested objects)
-- crypto brute-force (key length analysis)
-- MITM tampering (hybrid XWing key corruption)
-- replay attack resistant (timestamp + counter validation)
-- session hijack (IDB key non-extractability verification)
-- invite expiry manipulation (Infinity, future timestamps rejected)
-- downgrade attack (algorithm substitution rejection)
-- envelope fuzzing (JSON parsing robustness)
-- nonce replay (AES-GCM IV deduplication at DataChannel layer)
-- invite signing (ECDSA P-256 per-field coverage: `t`, `i`, `s`; signature-stripping defense)
-- ratchet properties (directional HKDF, bidirectional symmetry, per-step uniqueness, non-extractable message keys, initDhRatchet chain matching, DH healing step)
+The public repository contains 172 automated tests across Vitest and Playwright. Maintainers also run a separate private security suite before releases.
 
 **Build Verification:**
 - static artifact smoke test
@@ -189,13 +186,14 @@ Deferred until after MVP:
 
 ## Delivery Tracking
 
-The project execution plan is maintained in [p2p-message-project-tasks.json](p2p-message-project-tasks.json).
+The project state, open issues and verifiable completion criteria are tracked in [node.tasks.json](node.tasks.json) (with child graphs in [tests/node.tasks.json](tests/node.tasks.json) and [src/node.tasks.json](src/node.tasks.json)). The original MVP plan, [p2p-message-project-tasks.json](p2p-message-project-tasks.json), is kept for history.
 
 ## Known Limitations
 
 - manual signaling requires copying codes between peers (trade-off for zero-server architecture)
 - one-to-one chat only (no group support)
-- browser interoperability testing is narrower than production standards
+- automated tests run in Chromium only; Firefox and Safari are not yet covered
+- the Content Security Policy is a `<meta>` tag (GitHub Pages cannot send headers), so `frame-ancestors` is unavailable; the app refuses to run inside a frame instead
 - Tor Browser is not the default supported privacy path; it requires advanced WebRTC/TURN configuration and can expose IPs if misconfigured
 - post-quantum handshake (XWing hybrid) is not yet production-audited; should be peer-reviewed before high-security deployments
 
@@ -204,6 +202,7 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **Timestamp validation:** rejects Infinity, non-finite values, and future timestamps beyond 30s clock skew
 - **Counter validation:** rejects non-finite counters, values ≤ last received, and jumps >10,000 (DoS hardening)
 - **Forbidden key fields:** expanded checks for private key material (`seed` for XWing, `d` for ECDH) including nested objects
+- **Clickjacking guard:** the app refuses to boot inside a frame (CSP `frame-ancestors` is not available via `<meta>`)
 - **CSP hardening:** meta tag includes `sha256-...` hash for importmap script
 - **Invite signing (ECDSA P-256):** host generates a signing key per session; invite canonical bytes are signed; guest rejects any tampered payload
 - **Signature-stripping defense:** if the invite declares a signing key (`vk`) the `sig` field is now mandatory; a stripped signature is rejected as a downgrade attack
@@ -216,7 +215,6 @@ The project execution plan is maintained in [p2p-message-project-tasks.json](p2p
 - **CSP tightened:** removed `unsafe-inline` from `style-src`, added `connect-src 'self'`
 - **Local privacy probe:** replaced external `check.torproject.org` fetch with a local `RTCPeerConnection` probe — no network request, and the UI now frames VPN as the recommended default while keeping Tor/Tails/Whonix as an advanced path
 - **TURN relay support:** added optional relay-only ICE configuration for advanced users who enable WebRTC and want TCP relay transport
-- **Branch sync:** `main` and `master` now point to identical commits; older GitHub file views showed stale `master` until force-push
 
 ## Notes
 

@@ -1,0 +1,334 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "template_type": "project_task_template",
+  "version": "3.3",
+  "enums": {
+    "status": [
+      "Not Started",
+      "In Progress",
+      "Blocked",
+      "In Review",
+      "Done",
+      "Cancelled"
+    ],
+    "project_status": [
+      "Not Started",
+      "Planning",
+      "In Progress",
+      "On Hold",
+      "Completed",
+      "Cancelled"
+    ],
+    "priority": [
+      "Critical",
+      "High",
+      "Medium",
+      "Low"
+    ],
+    "complexity": [
+      "Very Low",
+      "Low",
+      "Medium",
+      "High",
+      "Very High"
+    ],
+    "dependency_type": [
+      "FS",
+      "SS",
+      "FF",
+      "SF"
+    ],
+    "hex_ring": [
+      "core/domain",
+      "core/ports",
+      "infrastructure/adapters",
+      "infrastructure/tools",
+      "application/services",
+      "application/agents",
+      "gateway/api",
+      "gateway/cli",
+      "ui",
+      "workflows"
+    ]
+  },
+  "project": {
+    "name": "web-p2p-message · tests and CI",
+    "description": "Child graph of P2P-002 (and P2P-009): test tooling and GitHub Actions.",
+    "start_date": "2026-11-26",
+    "end_date": null,
+    "status": "In Progress",
+    "timezone": "America/Santiago",
+    "currency": "USD",
+    "project_manager": {
+      "name": "NLarchive maintainer"
+    },
+    "repository": "https://github.com/NLarchive/web-p2p-message",
+    "live_url": "https://nlarchive.github.io/web-p2p-message/",
+    "graph_end": {
+      "mode": "handoff",
+      "summary": "CI green on master with current Playwright; cross-browser coverage added.",
+      "success_signal": "TST-003 success; TST-004 Done",
+      "next_step": "Close P2P-002 and P2P-009",
+      "owner": "NLarchive maintainer"
+    },
+    "closure": {
+      "actual_end_date": null,
+      "delivered_on_time": null,
+      "delivered_on_budget": null,
+      "lessons_learned": [],
+      "sign_off_by": null,
+      "sign_off_date": null
+    }
+  },
+  "categories": [
+    {
+      "name": "CI/CD",
+      "description": "GitHub Actions",
+      "parent_category_name": null
+    },
+    {
+      "name": "Quality",
+      "description": "Coverage",
+      "parent_category_name": null
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "TST-001",
+      "task_name": "Upgrade @playwright/test 1.58 → 1.65.1",
+      "description": "Old pinned Playwright (chromium rev 1208) is the likely cause of the 'Install Playwright browsers' failure on current runners. Upgraded in package.json + package-lock.json; full E2E re-run.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 0.5,
+      "actual_hours": 0.5,
+      "complexity": "Low",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "CI/CD",
+      "hex_ring": null,
+      "related_paths": [
+        "../package.json",
+        "../package-lock.json"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "npx playwright --version → 1.65.x",
+        "E2E pass with the new version"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npx playwright --version",
+          "npm run test:e2e"
+        ],
+        "success_signal": "Version 1.65.1; 9 passed",
+        "evidence": [
+          "2026-11-26 Playwright 1.65.1: 9 passed (27–36 s)"
+        ]
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "TST-002",
+      "task_name": "Pin runner image and Node version in both workflows",
+      "description": "Pin Ubuntu 24.04 and Node.js 22 in both CI jobs and the Pages deploy job.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 0.2,
+      "actual_hours": 0,
+      "complexity": "Very Low",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "CI/CD",
+      "hex_ring": null,
+      "related_paths": [
+        "../.github/workflows/ci.yml",
+        "../.github/workflows/deploy-pages.yml"
+      ],
+      "assigned_workers": [
+        {
+          "name": "NLarchive maintainer",
+          "role": "Developer",
+          "worker_id": "nlarchive-maintainer"
+        }
+      ],
+      "acceptance_criteria": [
+        "runs-on: ubuntu-24.04 in all 3 jobs",
+        "node-version: 22 in all 3 jobs"
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "grep -c \"ubuntu-24.04\" .github/workflows/*.yml",
+          "grep -c \"node-version: 22\" .github/workflows/*.yml"
+        ],
+        "success_signal": "ci.yml:2 deploy-pages.yml:1 for both greps",
+        "evidence": [
+          "2026-11-26 Verified two runner and Node pins in ci.yml and one in deploy-pages.yml."
+        ]
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "draft_content": {
+        "workflow_change": "--- .github/workflows/ci.yml and .github/workflows/deploy-pages.yml (every job)\n-    runs-on: ubuntu-latest\n+    runs-on: ubuntu-24.04\n...\n-          node-version: 20\n+          node-version: 22\n(keep env FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true as is)"
+      },
+      "next_step": null
+    },
+    {
+      "task_id": "TST-003",
+      "task_name": "Confirm CI green on master",
+      "description": "After TST-001/TST-002 are pushed (P2P-010), watch the run. If 'Install Playwright browsers' still fails, open the job log (requires sign-in) and record the error here.",
+      "start_date": null,
+      "end_date": null,
+      "due_date": null,
+      "priority": "High",
+      "status": "Not Started",
+      "progress_percentage": 0,
+      "estimated_hours": 0.3,
+      "actual_hours": 0,
+      "complexity": "Low",
+      "blocker_reason": "Waits on push (P2P-010).",
+      "is_critical_path": true,
+      "category_name": "CI/CD",
+      "hex_ring": null,
+      "related_paths": [
+        "../.github/workflows/ci.yml"
+      ],
+      "assigned_workers": [
+        {
+          "name": "NLarchive maintainer",
+          "role": "Developer",
+          "worker_id": "nlarchive-maintainer"
+        }
+      ],
+      "acceptance_criteria": [
+        "unit-tests and e2e-tests jobs succeed"
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "gh run watch $(gh run list --workflow ci.yml --branch master --limit 1 --json databaseId -q '.[0].databaseId')"
+        ],
+        "success_signal": "Run completes with success",
+        "evidence": []
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "TST-001",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "TST-002",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "TST-004",
+      "task_name": "Add Firefox and WebKit projects",
+      "description": "Add projects to playwright.config.js and install the browsers in CI (npx playwright install --with-deps chromium firefox webkit). Start as a non-blocking CI job (continue-on-error) until WebRTC loopback behaviour is confirmed per engine.",
+      "start_date": null,
+      "end_date": null,
+      "due_date": null,
+      "priority": "High",
+      "status": "Not Started",
+      "progress_percentage": 0,
+      "estimated_hours": 3,
+      "actual_hours": 0,
+      "complexity": "Medium",
+      "blocker_reason": "Agent environments cannot download Firefox/WebKit; run in CI or on the maintainer's machine.",
+      "is_critical_path": false,
+      "category_name": "Quality",
+      "hex_ring": null,
+      "related_paths": [
+        "../playwright.config.js",
+        "../.github/workflows/ci.yml"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "3 projects configured",
+        "Firefox+WebKit E2E pass or skips documented"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npx playwright test"
+        ],
+        "success_signal": "All projects pass",
+        "evidence": []
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "TST-003",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    }
+  ],
+  "navigation": {
+    "rootModule": "../node.tasks.json",
+    "modules": [
+      {
+        "path": "tests/node.tasks.json",
+        "label": "Tests and CI",
+        "name": "tests",
+        "taskIds": [
+          "TST-001",
+          "TST-002",
+          "TST-003",
+          "TST-004"
+        ],
+        "parentTaskId": "P2P-002"
+      }
+    ],
+    "parent": {
+      "path": "../node.tasks.json",
+      "taskIds": [
+        "P2P-002",
+        "P2P-009"
+      ]
+    }
+  }
+}

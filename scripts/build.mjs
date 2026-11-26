@@ -14,6 +14,7 @@ async function copyRecursive(source, destination) {
     await mkdir(destination, { recursive: true });
     const entries = await readdir(source);
     for (const entry of entries) {
+      if (entry === 'node.tasks.json') continue; // project tracking, not part of the site
       await copyRecursive(path.join(source, entry), path.join(destination, entry));
     }
     return;

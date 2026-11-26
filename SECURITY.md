@@ -16,7 +16,12 @@ Security-sensitive areas include:
 
 Do not open a public issue for a suspected vulnerability until impact is understood.
 
-Report security concerns privately to the project owner first. Include:
+Report security concerns privately first, using one of these channels:
+
+- GitHub private vulnerability reporting: the **Report a vulnerability** button on the repository's [Security tab](https://github.com/NLarchive/web-p2p-message/security)
+- email `contact@nlarchive.com` with the subject `[security] web-p2p-message`
+
+Expect an acknowledgement within 5 business days. Include:
 
 - affected version or commit
 - reproduction steps
@@ -25,8 +30,10 @@ Report security concerns privately to the project owner first. Include:
 
 ## Current Security Boundaries
 
-- encryption is end-to-end between peers after handshake completion
-- signaling is manual and not authenticated beyond fingerprint comparison
-- persistent identity and post-quantum cryptography are not part of the MVP
+- encryption is end-to-end between peers after handshake completion (Double Ratchet over AES-GCM)
+- the handshake is a hybrid post-quantum key agreement (XWing: ML-KEM-768 + X25519); it has not been independently audited
+- signaling is manual (copy/paste codes); invites are signed with a per-session ECDSA P-256 key, but the channel used to share the codes is not authenticated, so users must compare fingerprints to rule out a man-in-the-middle
+- the Content Security Policy is delivered as a `<meta>` tag because GitHub Pages cannot send response headers; `frame-ancestors` is therefore unavailable and the app refuses to run inside a frame instead
+- WebRTC exposes the peer's IP address to the other peer; use a system VPN when that matters
 - session deletion zeroizes Uint8Array key buffers best-effort; managed-runtime GC timing is not deterministic
 - browser compatibility and production hardening are still limited compared with a mature messaging product

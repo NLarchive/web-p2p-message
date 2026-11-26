@@ -74,6 +74,30 @@ try {
     throw new Error('App bundle does not contain the expected boot logic');
   }
 
+  // ── SEO / brand metadata (needed for NLarchive portfolio integration) ──
+  const requiredHead = [
+    '<meta name="description"',
+    '<link rel="canonical" href="https://nlarchive.github.io/web-p2p-message/">',
+    '<meta property="og:image" content="https://nlarchive.github.io/web-p2p-message/src/ui/og-image.png">',
+    'https://www.nlarchive.com/proyectos/',
+  ];
+  for (const needle of requiredHead) {
+    if (!home.body.includes(needle)) throw new Error(`Home page is missing SEO/brand metadata: ${needle}`);
+  }
+  const ldMatch = home.body.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  if (!ldMatch) throw new Error('Home page is missing JSON-LD structured data');
+  const ld = JSON.parse(ldMatch[1]);
+  if (ld['@type'] !== 'SoftwareApplication' || ld.publisher?.name !== 'NLarchive SpA') {
+    throw new Error('JSON-LD must describe a SoftwareApplication published by NLarchive SpA');
+  }
+
+  const ogImage = await request('/src/ui/og-image.png');
+  if (ogImage.statusCode !== 200) throw new Error(`Expected og-image.png to return 200, got ${ogImage.statusCode}`);
+
+  if (!appJs.body.includes('Built by NLarchive')) throw new Error('App footer is missing the NLarchive brand link');
+  if (appJs.body.includes('/blob/main/')) throw new Error('App links to a non-existent "main" branch; use master');
+  if (!appJs.body.includes('isFramed()')) throw new Error('App is missing the clickjacking (frame) guard');
+
   const styles = await request('/src/ui/styles.css');
   if (styles.statusCode !== 200) {
     throw new Error(`Expected /src/ui/styles.css to return 200, got ${styles.statusCode}`);

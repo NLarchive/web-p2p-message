@@ -7,3 +7,6 @@ playwright-report/
 test-results/
 /vendor/
 message-interceptor/
+/web-p2p-message.png
+# generated locally by the context compiler (contains local paths)
+PROJECT_SPEC.md

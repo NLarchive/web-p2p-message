@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "template_type": "project_task_template",
+  "version": "3.3",
+  "enums": {
+    "status": [
+      "Not Started",
+      "In Progress",
+      "Blocked",
+      "In Review",
+      "Done",
+      "Cancelled"
+    ],
+    "project_status": [
+      "Not Started",
+      "Planning",
+      "In Progress",
+      "On Hold",
+      "Completed",
+      "Cancelled"
+    ],
+    "priority": [
+      "Critical",
+      "High",
+      "Medium",
+      "Low"
+    ],
+    "complexity": [
+      "Very Low",
+      "Low",
+      "Medium",
+      "High",
+      "Very High"
+    ],
+    "dependency_type": [
+      "FS",
+      "SS",
+      "FF",
+      "SF"
+    ],
+    "hex_ring": [
+      "core/domain",
+      "core/ports",
+      "infrastructure/adapters",
+      "infrastructure/tools",
+      "application/services",
+      "application/agents",
+      "gateway/api",
+      "gateway/cli",
+      "ui",
+      "workflows"
+    ]
+  },
+  "project": {
+    "name": "web-p2p-message · src (live demo)",
+    "description": "Child graph of P2P-005: changes to the deployed page.",
+    "start_date": "2026-11-26",
+    "end_date": null,
+    "status": "Completed",
+    "timezone": "America/Santiago",
+    "currency": "USD",
+    "project_manager": {
+      "name": "NLarchive maintainer"
+    },
+    "repository": "https://github.com/NLarchive/web-p2p-message",
+    "live_url": "https://nlarchive.github.io/web-p2p-message/",
+    "graph_end": {
+      "mode": "handoff",
+      "summary": "All SRC tasks Done and covered by smoke + E2E.",
+      "success_signal": "npm run test:ci && npx playwright test site-integration --project=chromium",
+      "next_step": "Close P2P-005 in ../node.tasks.json",
+      "owner": "NLarchive maintainer"
+    },
+    "closure": {
+      "actual_end_date": null,
+      "delivered_on_time": null,
+      "delivered_on_budget": null,
+      "lessons_learned": [],
+      "sign_off_by": null,
+      "sign_off_date": null
+    }
+  },
+  "categories": [
+    {
+      "name": "SEO / Brand",
+      "description": "Metadata and attribution",
+      "parent_category_name": null
+    },
+    {
+      "name": "Security",
+      "description": "Hardening",
+      "parent_category_name": null
+    },
+    {
+      "name": "Quality",
+      "description": "UI polish",
+      "parent_category_name": null
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "SRC-001",
+      "task_name": "SEO head: description, canonical, Open Graph, Twitter, JSON-LD",
+      "description": "index.html (served from dist/) gains a descriptive title, meta description, canonical, OG/Twitter tags and a SoftwareApplication JSON-LD block whose publisher is the NLarchive SpA Organization (@id https://www.nlarchive.com/#organization, same as the site). JSON-LD is a non-executed data block so script-src stays hash-only. A <noscript> block gives crawlers text and links.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 1,
+      "actual_hours": 1,
+      "complexity": "Medium",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "SEO / Brand",
+      "hex_ring": "ui",
+      "related_paths": [
+        "../index.html"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "All tags present in dist/index.html",
+        "JSON-LD parses and @type=SoftwareApplication",
+        "CSP importmap hash still matches (build re-hashes)"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npm run build && npm run smoke",
+          "node scripts/verify-hash.mjs"
+        ],
+        "success_signal": "Smoke passes; verify-hash prints match: true.",
+        "evidence": [
+          "smoke-test SEO assertions passing 2026-11-26"
+        ]
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "SRC-002",
+      "task_name": "Brand backlink in the app footer",
+      "description": "Footer: 'Source code (AGPL-3.0) · Built by NLarchive' → https://www.nlarchive.com/proyectos/ (rel=noopener, referrer kept so the visit shows in NLarchive analytics).",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 0.3,
+      "actual_hours": 0.3,
+      "complexity": "Low",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "SEO / Brand",
+      "hex_ring": "ui",
+      "related_paths": [
+        "ui/app.js"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "#brand-link visible with the correct href"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npx playwright test site-integration -g footer"
+        ],
+        "success_signal": "1 passed",
+        "evidence": [
+          "E2E 'footer links to the source code and to NLarchive' passed"
+        ]
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "SRC-003",
+      "task_name": "Social preview image (1200×630)",
+      "description": "src/ui/og-image.png, 99 KB, rendered from HTML: title, one-line value proposition, five capability chips, 'Built by NLarchive'. Copied to dist/ with src/.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 0.5,
+      "actual_hours": 0.5,
+      "complexity": "Low",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "SEO / Brand",
+      "hex_ring": "ui",
+      "related_paths": [
+        "ui/og-image.png"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "1200×630 PNG served with 200 from dist",
+        "No 'quantum-safe' wording"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npm run smoke"
+        ],
+        "success_signal": "og-image.png returns 200 in the smoke test",
+        "evidence": []
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "SRC-004",
+      "task_name": "Clickjacking guard",
+      "description": "CSP frame-ancestors is ignored in <meta> and GitHub Pages cannot send X-Frame-Options, so the invite/answer UI could be framed by a hostile page. isFramed() now stops boot and shows a link to open the app top-level. Documented in docs/security.md.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 0.5,
+      "actual_hours": 0.5,
+      "complexity": "Medium",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "Security",
+      "hex_ring": "ui",
+      "related_paths": [
+        "ui/app.js",
+        "../docs/security.md"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "Framed page shows #framed-warning and no #btn-create",
+        "Unframed boot unchanged (all chat-flow E2E pass)"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npx playwright test site-integration -g frame"
+        ],
+        "success_signal": "1 passed",
+        "evidence": [
+          "E2E 'app refuses to run inside a frame' passed",
+          "chat-flow 5/5 still pass"
+        ]
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "SRC-005",
+      "task_name": "Readable link in the privacy warning banner",
+      "description": "The 'no-log system VPN' link in the red WebRTC warning rendered in default dark blue on the dark theme (visible in web-p2p-message.png). .privacy-status a now inherits the banner color, bold, underlined.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 0.2,
+      "actual_hours": 0.2,
+      "complexity": "Very Low",
+      "blocker_reason": "",
+      "is_critical_path": false,
+      "category_name": "Quality",
+      "hex_ring": "ui",
+      "related_paths": [
+        "ui/styles.css"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "Link colour equals banner text colour"
+      ],
+      "verification": {
+        "strategy": "manual",
+        "commands": [
+          "npm run preview"
+        ],
+        "success_signal": "Link readable on the dark theme.",
+        "evidence": []
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    }
+  ],
+  "navigation": {
+    "rootModule": "../node.tasks.json",
+    "modules": [
+      {
+        "path": "src/node.tasks.json",
+        "label": "Live demo",
+        "name": "src",
+        "taskIds": [
+          "SRC-001",
+          "SRC-002",
+          "SRC-003",
+          "SRC-004",
+          "SRC-005"
+        ],
+        "parentTaskId": "P2P-005"
+      }
+    ],
+    "parent": {
+      "path": "../node.tasks.json",
+      "taskIds": [
+        "P2P-005"
+      ]
+    }
+  }
+}

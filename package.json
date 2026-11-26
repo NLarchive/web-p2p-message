@@ -2,7 +2,21 @@
   "name": "p2p-message",
   "version": "0.1.0",
   "type": "module",
-  "description": "Browser-based P2P encrypted chat with manual invite signaling",
+  "description": "Browser-to-browser end-to-end encrypted chat (WebRTC, WebCrypto, Double Ratchet, hybrid post-quantum handshake)",
+  "license": "AGPL-3.0-or-later",
+  "author": "NLarchive SpA (https://www.nlarchive.com/)",
+  "homepage": "https://nlarchive.github.io/web-p2p-message/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NLarchive/web-p2p-message.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NLarchive/web-p2p-message/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true,
   "scripts": {
     "build": "node scripts/build.mjs",
     "preview": "node scripts/preview.mjs",
@@ -11,8 +25,7 @@
     "test:ci": "node scripts/test-ci.mjs",
     "test:e2e": "npx playwright test --project=chromium",
     "test:e2e:headed": "npx playwright test --project=chromium --headed",
-    "test:security": "npx playwright test security-audit --project=chromium",
-    "test:security:headed": "npx playwright test security-audit --project=chromium --headed",
+    "test:security": "node message-interceptor/main.mjs",
     "interceptor": "node message-interceptor/main.mjs",
     "postinstall": "node scripts/vendor.mjs",
     "dev:setup": "node scripts/vendor.mjs",
@@ -20,7 +33,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.65.1",
     "vitest": "^3.0.0",
     "wait-on": "^9.0.4"
   },

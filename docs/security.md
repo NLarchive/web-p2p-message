@@ -49,6 +49,10 @@ For the first version, default to minimal retention:
 - if secret persistence is ever enabled, make it opt-in and protect it with a user-supplied passphrase-based wrapping key
 - document the local device risk clearly because any browser-profile access can expose persisted material
 
+## Page Hardening on GitHub Pages
+
+GitHub Pages cannot send HTTP response headers, so the Content Security Policy is delivered as a `<meta>` tag. Directives that only work as headers (`frame-ancestors`, `report-uri`) are unavailable. To compensate for the missing `frame-ancestors`, the UI refuses to boot when it detects it is running inside a frame (`isFramed()` in `src/ui/app.js`), which is covered by an E2E test. Structured data (`application/ld+json`) is a non-executed data block and does not require relaxing `script-src`.
+
 ## Post-Quantum Preparation
 
 The current implementation includes a hybrid post-quantum handshake, but it is not production-audited. It should not be marketed as quantum-safe.

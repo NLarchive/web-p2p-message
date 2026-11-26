@@ -45,6 +45,7 @@ body {
   text-decoration: none;
 }
 
+.app-footer a:focus-visible,
 .app-footer a:hover {
   text-decoration: underline;
 }
@@ -366,6 +367,11 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
 .privacy-direct {
   border-color: var(--danger);
   color: var(--danger);
+}
+.privacy-status a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
 }
 .privacy-unknown,
 .privacy-checking {

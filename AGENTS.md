@@ -1,129 +1,36 @@
-project structure"""
-D:\web\web-p2p-message\.github
-D:\web\web-p2p-message\dist
-D:\web\web-p2p-message\docs
-D:\web\web-p2p-message\message-interceptor
-D:\web\web-p2p-message\node_modules
-D:\web\web-p2p-message\playwright-report
-D:\web\web-p2p-message\scripts
-D:\web\web-p2p-message\scripts\build.mjs
-D:\web\web-p2p-message\scripts\hash-importmap.mjs
-D:\web\web-p2p-message\scripts\preview.mjs
-D:\web\web-p2p-message\scripts\serve-e2e.mjs
-D:\web\web-p2p-message\scripts\smoke-test.mjs
-D:\web\web-p2p-message\scripts\test-ci.mjs
-D:\web\web-p2p-message\scripts\vendor.mjs
-D:\web\web-p2p-message\scripts\verify-hash.mjs
-D:\web\web-p2p-message\src
-D:\web\web-p2p-message\src\adapters
-D:\web\web-p2p-message\src\adapters\crypto
-D:\web\web-p2p-message\src\adapters\crypto\HybridPqCryptoAdapter.js
-D:\web\web-p2p-message\src\adapters\crypto\WebCryptoEcdhAesGcm.js
-D:\web\web-p2p-message\src\adapters\identity
-D:\web\web-p2p-message\src\adapters\identity\EphemeralIdentityAdapter.js
-D:\web\web-p2p-message\src\adapters\identity\PersistentIdentityAdapter.js
-D:\web\web-p2p-message\src\adapters\signaling
-D:\web\web-p2p-message\src\adapters\signaling\ManualCodeSignalingAdapter.js
-D:\web\web-p2p-message\src\adapters\signaling\NostrSignalingAdapter.js
-D:\web\web-p2p-message\src\adapters\signaling\TorrentSignalingAdapter.js
-D:\web\web-p2p-message\src\adapters\storage
-D:\web\web-p2p-message\src\adapters\storage\IndexedDbStorageAdapter.js
-D:\web\web-p2p-message\src\adapters\storage\MemoryStorageAdapter.js
-D:\web\web-p2p-message\src\adapters\storage\SessionStorageAdapter.js
-D:\web\web-p2p-message\src\adapters\transport
-D:\web\web-p2p-message\src\adapters\transport\BroadcastChannelAdapter.js
-D:\web\web-p2p-message\src\adapters\transport\SharedWorkerTransportAdapter.js
-D:\web\web-p2p-message\src\adapters\transport\WebRtcTransportAdapter.js
-D:\web\web-p2p-message\src\config
-D:\web\web-p2p-message\src\config\composition-root.js
-D:\web\web-p2p-message\src\core
-D:\web\web-p2p-message\src\core\domain
-D:\web\web-p2p-message\src\core\domain\Envelope.js
-D:\web\web-p2p-message\src\core\domain\Message.js
-D:\web\web-p2p-message\src\core\domain\PeerIdentity.js
-D:\web\web-p2p-message\src\core\domain\Session.js
-D:\web\web-p2p-message\src\core\ports
-D:\web\web-p2p-message\src\core\ports\ICryptoPort.js
-D:\web\web-p2p-message\src\core\ports\IIdentityPort.js
-D:\web\web-p2p-message\src\core\ports\ISignalingPort.js
-D:\web\web-p2p-message\src\core\ports\IStoragePort.js
-D:\web\web-p2p-message\src\core\ports\ITransportPort.js
-D:\web\web-p2p-message\src\core\services
-D:\web\web-p2p-message\src\core\services\SessionManager.js
-D:\web\web-p2p-message\src\core\usecases
-D:\web\web-p2p-message\src\core\usecases\CreateChatSession.js
-D:\web\web-p2p-message\src\core\usecases\FinalizeHandshake.js
-D:\web\web-p2p-message\src\core\usecases\JoinChatSession.js
-D:\web\web-p2p-message\src\core\usecases\ReceiveMessage.js
-D:\web\web-p2p-message\src\core\usecases\SendMessage.js
-D:\web\web-p2p-message\src\core\usecases\VerifyFingerprint.js
-D:\web\web-p2p-message\src\shared
-D:\web\web-p2p-message\src\shared\encoding
-D:\web\web-p2p-message\src\shared\encoding\base64url.js
-D:\web\web-p2p-message\src\shared\errors
-D:\web\web-p2p-message\src\shared\errors\AppErrors.js
-D:\web\web-p2p-message\src\shared\validation
-D:\web\web-p2p-message\src\shared\validation\constraints.js
-D:\web\web-p2p-message\src\ui
-D:\web\web-p2p-message\src\ui\app.js
-D:\web\web-p2p-message\src\ui\styles.css
-D:\web\web-p2p-message\src\workers
-D:\web\web-p2p-message\src\workers\rtc.worker.js
-D:\web\web-p2p-message\test-results
-D:\web\web-p2p-message\tests
-D:\web\web-p2p-message\tests\adapters
-D:\web\web-p2p-message\tests\adapters\crypto
-D:\web\web-p2p-message\tests\adapters\crypto\HybridPqCryptoAdapter.test.js
-D:\web\web-p2p-message\tests\adapters\crypto\WebCryptoEcdhAesGcm.test.js
-D:\web\web-p2p-message\tests\adapters\identity
-D:\web\web-p2p-message\tests\adapters\identity\EphemeralIdentityAdapter.test.js
-D:\web\web-p2p-message\tests\adapters\signaling
-D:\web\web-p2p-message\tests\adapters\signaling\ManualCodeSignalingAdapter.test.js
-D:\web\web-p2p-message\tests\adapters\storage
-D:\web\web-p2p-message\tests\adapters\storage\MemoryStorageAdapter.test.js
-D:\web\web-p2p-message\tests\core
-D:\web\web-p2p-message\tests\core\domain
-D:\web\web-p2p-message\tests\core\domain\Envelope.test.js
-D:\web\web-p2p-message\tests\core\domain\Message.test.js
-D:\web\web-p2p-message\tests\core\domain\PeerIdentity.test.js
-D:\web\web-p2p-message\tests\core\domain\Session.test.js
-D:\web\web-p2p-message\tests\core\services
-D:\web\web-p2p-message\tests\core\services\SessionManager.test.js
-D:\web\web-p2p-message\tests\core\usecases
-D:\web\web-p2p-message\tests\core\usecases\CreateChatSession.test.js
-D:\web\web-p2p-message\tests\core\usecases\FinalizeHandshake.test.js
-D:\web\web-p2p-message\tests\core\usecases\JoinChatSession.test.js
-D:\web\web-p2p-message\tests\core\usecases\ReceiveMessage.test.js
-D:\web\web-p2p-message\tests\core\usecases\SendMessage.test.js
-D:\web\web-p2p-message\tests\core\usecases\VerifyFingerprint.test.js
-D:\web\web-p2p-message\tests\e2e
-D:\web\web-p2p-message\tests\e2e\chat-flow.spec.js
-D:\web\web-p2p-message\tests\helpers
-D:\web\web-p2p-message\tests\helpers\MockCryptoPort.js
-D:\web\web-p2p-message\tests\helpers\MockIdentityPort.js
-D:\web\web-p2p-message\tests\helpers\MockSignalingPort.js
-D:\web\web-p2p-message\tests\helpers\MockStoragePort.js
-D:\web\web-p2p-message\tests\helpers\MockTransportPort.js
-D:\web\web-p2p-message\tests\integration
-D:\web\web-p2p-message\tests\integration\full-flow.test.js
-D:\web\web-p2p-message\tests\shared
-D:\web\web-p2p-message\tests\shared\encoding
-D:\web\web-p2p-message\tests\shared\encoding\base64url.test.js
-D:\web\web-p2p-message\tests\shared\validation
-D:\web\web-p2p-message\tests\shared\validation\constraints.test.js
-D:\web\web-p2p-message\tests\setup.js
-D:\web\web-p2p-message\vendor
-D:\web\web-p2p-message\.gitattributes
-D:\web\web-p2p-message\.gitignore
-D:\web\web-p2p-message\AGENTS.md
-D:\web\web-p2p-message\CONTRIBUTING.md
-D:\web\web-p2p-message\index.html
-D:\web\web-p2p-message\LICENSE
-D:\web\web-p2p-message\p2p-message-project-tasks.json
-D:\web\web-p2p-message\package-lock.json
-D:\web\web-p2p-message\package.json
-D:\web\web-p2p-message\playwright.config.js
-D:\web\web-p2p-message\README.md
-D:\web\web-p2p-message\SECURITY.md
-D:\web\web-p2p-message\vitest.config.js
-"""
+# AGENTS.md — guidance for coding agents
+
+Browser-to-browser end-to-end encrypted chat (WebRTC DataChannels + WebCrypto + Double Ratchet,
+hybrid post-quantum handshake). Vanilla JavaScript ES modules, no bundler, deployed as a static
+site to GitHub Pages: https://nlarchive.github.io/web-p2p-message/
+
+## Architecture (hexagonal / ports and adapters)
+
+| Ring | Folder | Rule |
+| --- | --- | --- |
+| 0 domain | `src/core/domain/` | Pure entities (Session, Message, PeerIdentity, Envelope). No browser APIs. |
+| 1 ports | `src/core/ports/` | Interface contracts (crypto, identity, signaling, storage, transport). |
+| 2 use cases / services | `src/core/usecases/`, `src/core/services/` | Orchestrate domain through ports only. |
+| 2 adapters | `src/adapters/*` | Implement ports with browser APIs (WebCrypto, WebRTC, IndexedDB…). |
+| 3 composition + UI | `src/config/composition-root.js`, `src/ui/`, `src/workers/` | Wire adapters; render the UI. |
+
+Core code must never import from `src/adapters`, `src/ui` or `src/workers`.
+
+## Commands
+
+```bash
+npm ci                 # also vendors @noble/* into /vendor via postinstall
+npm test               # Vitest unit + integration (163 tests)
+npm run test:ci        # unit tests + build + smoke test (what CI runs)
+npm run test:e2e       # Playwright, Chromium, against dist/ (9 tests)
+npm run test:security  # private interceptor suite (needs message-interceptor/ and `npm run preview`)
+```
+
+## Rules
+
+- Keep the CSP strict: no inline scripts or styles. `scripts/build.mjs` re-hashes the importmap
+  into the CSP; JSON-LD (`application/ld+json`) is a non-executed data block and is allowed.
+- Security claims in README/SECURITY.md/docs must match the code and the tests.
+- Track work in `node.tasks.json` (root) and its child graphs; update status and evidence when a
+  task progresses.
+- `message-interceptor/` is intentionally git-ignored (private attack tooling).

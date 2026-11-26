@@ -1,0 +1,998 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "template_type": "project_task_template",
+  "version": "3.3",
+  "enums": {
+    "status": [
+      "Not Started",
+      "In Progress",
+      "Blocked",
+      "In Review",
+      "Done",
+      "Cancelled"
+    ],
+    "project_status": [
+      "Not Started",
+      "Planning",
+      "In Progress",
+      "On Hold",
+      "Completed",
+      "Cancelled"
+    ],
+    "priority": [
+      "Critical",
+      "High",
+      "Medium",
+      "Low"
+    ],
+    "complexity": [
+      "Very Low",
+      "Low",
+      "Medium",
+      "High",
+      "Very High"
+    ],
+    "dependency_type": [
+      "FS",
+      "SS",
+      "FF",
+      "SF"
+    ],
+    "hex_ring": [
+      "core/domain",
+      "core/ports",
+      "infrastructure/adapters",
+      "infrastructure/tools",
+      "application/services",
+      "application/agents",
+      "gateway/api",
+      "gateway/cli",
+      "ui",
+      "workflows"
+    ]
+  },
+  "project": {
+    "name": "web-p2p-message · portfolio integration (root)",
+    "description": "Current state and remaining work to present P2P Message on nlarchive.com (/proyectos/, /nosotros/) as proof of security engineering. The app itself is a finished MVP (163 unit + 9 E2E tests, 11/11 private attack techniques). This graph covers what blocked a credible integration: failing CI, inaccurate docs, missing SEO/brand metadata, and the site-side links. Supersedes p2p-message-project-tasks.json (kept for history).",
+    "start_date": "2026-11-26",
+    "end_date": null,
+    "status": "In Progress",
+    "timezone": "America/Santiago",
+    "currency": "USD",
+    "project_manager": {
+      "name": "NLarchive maintainer"
+    },
+    "repository": "https://github.com/NLarchive/web-p2p-message",
+    "live_url": "https://nlarchive.github.io/web-p2p-message/",
+    "graph_end": {
+      "mode": "handoff",
+      "summary": "Closed when the demo, the repo and the NLarchive pages all show consistent, verifiable claims and CI is green.",
+      "success_signal": "P2P-012 verification commands all green.",
+      "verification_command": "npm run test:ci && npm run test:e2e",
+      "next_step": "Hand off to NLA-007 on the NLarchive root graph (production publication) and to P2P-011 (external audit).",
+      "owner": "NLarchive maintainer"
+    },
+    "closure": {
+      "actual_end_date": null,
+      "delivered_on_time": null,
+      "delivered_on_budget": null,
+      "lessons_learned": [],
+      "sign_off_by": null,
+      "sign_off_date": null
+    },
+    "test_inventory": {
+      "unit_integration_vitest": 163,
+      "e2e_playwright_chromium": 9,
+      "interceptor_techniques_private": 11,
+      "public_total": 172,
+      "total": 183,
+      "measured_on": "2026-11-26"
+    }
+  },
+  "categories": [
+    {
+      "name": "Verification",
+      "description": "Running and recording tests",
+      "parent_category_name": null
+    },
+    {
+      "name": "CI/CD",
+      "description": "GitHub Actions and Pages",
+      "parent_category_name": null
+    },
+    {
+      "name": "Quality",
+      "description": "Links, scripts, repo hygiene",
+      "parent_category_name": null
+    },
+    {
+      "name": "Security",
+      "description": "Security docs, audits, attack suite",
+      "parent_category_name": null
+    },
+    {
+      "name": "SEO / Brand",
+      "description": "Metadata and NLarchive attribution",
+      "parent_category_name": null
+    },
+    {
+      "name": "Integration",
+      "description": "Links from nlarchive.com",
+      "parent_category_name": null
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "P2P-001",
+      "task_name": "Audit current state and run every test layer",
+      "description": "Baseline before integrating into NLarchive. Ran the three test layers on a clean install (Linux, Node 22) and checked the GitHub Actions history and the live Pages deploy.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "Critical",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 1.5,
+      "actual_hours": 1.5,
+      "complexity": "Medium",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "Verification",
+      "hex_ring": null,
+      "related_paths": [
+        "package.json",
+        "tests/",
+        "message-interceptor/",
+        ".github/workflows/"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "163/163 Vitest unit+integration tests pass",
+        "build + smoke test pass",
+        "Playwright E2E chat flow passes (Chromium)",
+        "11/11 interceptor techniques pass against a fresh build",
+        "npm audit reports 0 vulnerabilities",
+        "Findings recorded as tasks P2P-002..P2P-012"
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "npm ci",
+          "npm run test:ci",
+          "npm run test:e2e",
+          "npm run preview & npm run test:security",
+          "npm audit"
+        ],
+        "success_signal": "All commands exit 0; interceptor prints 'ALL TECHNIQUES PASSED'.",
+        "evidence": [
+          "2026-11-26 npm run test:ci: 20 files, 163 passed; 'Smoke test passed against built site.'",
+          "2026-11-26 Playwright 1.58 E2E: 5 passed (before new specs)",
+          "2026-11-26 interceptor: 11/11 PASSED — 'ALL TECHNIQUES PASSED'",
+          "2026-11-26 npm audit: found 0 vulnerabilities",
+          "GitHub Actions: CI red on master since 2026-03-20 (b3fea1d, ef4d7b9) → P2P-002"
+        ]
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "P2P-002",
+      "task_name": "Restore a green CI badge on GitHub (E2E job failing since 2026-03-20)",
+      "description": "The public repo shows a failing CI on master: run 45042486416 (ef4d7b9) fails at 'Install Playwright browsers' in the e2e-tests job; the previous commit b3fea1d also failed. A red badge undermines the '160+ tests' sales claim. Fix: upgrade @playwright/test to 1.65.1 (done, E2E re-verified) and pin runner/Node in the workflows (needs maintainer: .github/ is write-protected for the agent). Detailed steps in tests/node.tasks.json.",
+      "start_date": "2026-11-26",
+      "end_date": null,
+      "due_date": null,
+      "priority": "Critical",
+      "status": "In Review",
+      "progress_percentage": 90,
+      "estimated_hours": 1,
+      "actual_hours": 0,
+      "complexity": "Medium",
+      "blocker_reason": "Awaiting CI on the release commit.",
+      "is_critical_path": true,
+      "category_name": "CI/CD",
+      "hex_ring": null,
+      "related_paths": [
+        "package.json",
+        "package-lock.json",
+        ".github/workflows/ci.yml",
+        ".github/workflows/deploy-pages.yml"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "@playwright/test >= 1.65 in package.json/package-lock.json",
+        "Workflows use ubuntu-24.04 and Node 22",
+        "Latest CI run on master: both jobs success",
+        "README CI badge is green"
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "gh run list --workflow ci.yml --branch master --limit 1 --json conclusion -q '.[0].conclusion'"
+        ],
+        "success_signal": "success",
+        "evidence": [
+          "2026-11-26 Playwright 1.65.1: 9/9 E2E passed locally (Chromium)",
+          "2026-11-26 Pinned all three workflow jobs to ubuntu-24.04 and Node 22. Local Windows Vitest (163 tests), build and smoke passed."
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-001",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "draft_content": {
+        "workflow_change": "--- .github/workflows/ci.yml and .github/workflows/deploy-pages.yml (every job)\n-    runs-on: ubuntu-latest\n+    runs-on: ubuntu-24.04\n...\n-          node-version: 20\n+          node-version: 22\n(keep env FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true as is)"
+      },
+      "child_graph": "tests/node.tasks.json"
+    },
+    {
+      "task_id": "P2P-003",
+      "task_name": "Fix broken links and dead npm scripts",
+      "description": "In-app 'Security notes' linked to /blob/main/ but the repo only has a master branch (404). npm scripts test:security / test:security:headed called a Playwright spec 'security-audit' that does not exist. README claimed main and master were synced.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 0.5,
+      "actual_hours": 0.5,
+      "complexity": "Low",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "Quality",
+      "hex_ring": null,
+      "related_paths": [
+        "src/ui/app.js",
+        "package.json",
+        "README.md"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "No '/blob/main/' or '/tree/main/' links in src/ or docs",
+        "npm run test:security runs the interceptor entry point",
+        "False branch-sync note removed"
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "npm run smoke",
+          "grep -rn \"blob/main\" src docs README.md || echo none"
+        ],
+        "success_signal": "Smoke test fails if app.js links to /blob/main/; grep prints 'none'.",
+        "evidence": [
+          "smoke-test.mjs now asserts no '/blob/main/' in app.js — passing"
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-001",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "P2P-004",
+      "task_name": "Align security documentation with the implementation",
+      "description": "SECURITY.md contradicted the README (said post-quantum crypto and persistent identity were not part of the MVP; said signaling had no authentication besides fingerprints, while invites are ECDSA-signed) and gave no channel to report vulnerabilities. Buyers reading it would see inconsistency. Also documented the GitHub Pages limitation (CSP via <meta>, no frame-ancestors).",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 1,
+      "actual_hours": 1,
+      "complexity": "Medium",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "Security",
+      "hex_ring": null,
+      "related_paths": [
+        "SECURITY.md",
+        "docs/security.md",
+        "README.md"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "SECURITY.md lists a private reporting channel (GitHub private reporting + contact@nlarchive.com)",
+        "Security boundaries describe XWing hybrid handshake, ECDSA-signed invites, meta-CSP limits, IP exposure",
+        "Copy never says 'quantum-safe' (docs/security.md rule)",
+        "README Known Limitations mentions Chromium-only tests and meta-CSP"
+      ],
+      "verification": {
+        "strategy": "manual",
+        "commands": [
+          "grep -n \"contact@nlarchive.com\" SECURITY.md",
+          "grep -rni \"quantum-safe\" README.md index.html SECURITY.md"
+        ],
+        "success_signal": "Email present; 'quantum-safe' only appears in the docs rule that forbids it.",
+        "evidence": [
+          "SECURITY.md and docs/security.md updated 2026-11-26",
+          "2026-11-26 Enabled GitHub private vulnerability reporting. Repositories API returned enabled: true."
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-001",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [
+        {
+          "task_name": "Enable GitHub private vulnerability reporting (repo Settings → Security)",
+          "status": "Not Started",
+          "description": "Maintainer action: the SECURITY.md link points to the Security tab.",
+          "progress_percentage": 0
+        }
+      ],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "next_step": null
+    },
+    {
+      "task_id": "P2P-005",
+      "task_name": "Make the live demo portfolio-ready (SEO head, brand backlink, social card, hardening)",
+      "description": "The live page had only <title>P2P Message</title>: no description, canonical, Open Graph, structured data or link to NLarchive, so linking it from /proyectos/ added no brand signal. Delivered in src/node.tasks.json (SRC-001..SRC-005).",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "Critical",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 3,
+      "actual_hours": 3,
+      "complexity": "Medium",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "SEO / Brand",
+      "hex_ring": "ui",
+      "related_paths": [
+        "index.html",
+        "src/ui/app.js",
+        "src/ui/styles.css",
+        "src/ui/og-image.png",
+        "scripts/smoke-test.mjs",
+        "tests/e2e/site-integration.spec.js"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "index.html has description, canonical, OG/Twitter tags, SoftwareApplication JSON-LD published by NLarchive SpA",
+        "Footer shows 'Built by NLarchive' → https://www.nlarchive.com/proyectos/",
+        "No CSP violations on load",
+        "App refuses to run inside a frame",
+        "Smoke test + E2E assert all of the above"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npm run test:ci",
+          "npx playwright test site-integration --project=chromium"
+        ],
+        "success_signal": "Smoke test passed; 4/4 site-integration specs pass.",
+        "evidence": [
+          "2026-11-26 npm run test:ci: 163 passed + smoke (with SEO assertions) passed",
+          "2026-11-26 Playwright: 9 passed (5 chat-flow + 4 site-integration)",
+          "2026-11-26 interceptor re-run after changes: 11/11 PASSED"
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-001",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "child_graph": "src/node.tasks.json"
+    },
+    {
+      "task_id": "P2P-006",
+      "task_name": "Clean the public repository for a buyer audience",
+      "description": "AGENTS.md was a raw dump of D:\\ Windows paths; agent memory notes in .github/copilot had stale counts (104 unit / 3 E2E); PROJECT_SPEC.md (generated, contains local paths) was untracked but not ignored; package.json had no license/repository/homepage; the old tracker said 'Not Started' for features that are shipped.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "Medium",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 1,
+      "actual_hours": 0,
+      "complexity": "Low",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "Quality",
+      "hex_ring": null,
+      "related_paths": [
+        "AGENTS.md",
+        ".gitignore",
+        "package.json",
+        "p2p-message-project-tasks.json",
+        ".github/copilot/memories/repo/workspace-notes.md",
+        "web-p2p-message.png"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "AGENTS.md is real agent guidance (architecture, commands, rules)",
+        "package.json has license AGPL-3.0-or-later, repository, homepage, bugs, author",
+        "PROJECT_SPEC.md git-ignored",
+        "Old tracker marked superseded_by node.tasks.json with real statuses",
+        "workspace-notes.md counts updated (163 unit / 9 E2E)",
+        "Obsolete web-p2p-message.png stays local and is ignored. The new share image is src/ui/og-image.png."
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "node -e \"const p=require('./package.json');if(!p.license||!p.repository)process.exit(1)\"",
+          "git check-ignore PROJECT_SPEC.md"
+        ],
+        "success_signal": "Both commands exit 0.",
+        "evidence": [
+          "2026-11-26 Updated workspace notes to 163 Vitest and 9 Chromium scenarios. Git ignores PROJECT_SPEC.md and the legacy screenshot."
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-001",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [
+        {
+          "task_name": "Rewrite AGENTS.md",
+          "status": "Done",
+          "description": "",
+          "progress_percentage": 100
+        },
+        {
+          "task_name": "package.json metadata",
+          "status": "Done",
+          "description": "",
+          "progress_percentage": 100
+        },
+        {
+          "task_name": "Ignore PROJECT_SPEC.md",
+          "status": "Done",
+          "description": "",
+          "progress_percentage": 100
+        },
+        {
+          "task_name": "Mark p2p-message-project-tasks.json superseded",
+          "status": "Done",
+          "description": "",
+          "progress_percentage": 100
+        },
+        {
+          "task_name": "Update .github/copilot/memories/repo/workspace-notes.md counts",
+          "status": "Blocked",
+          "description": "Protected path for the agent. Maintainer: change '104 tests' → '163 tests' and '(3 tests)' → '(9 tests: chat flow + portfolio integration)', or delete the file (internal notes need not be public).",
+          "progress_percentage": 0
+        },
+        {
+          "task_name": "Decide on untracked web-p2p-message.png",
+          "status": "Not Started",
+          "description": "Screenshot shows old test sessions; superseded by src/ui/og-image.png. Delete it or commit it as a README screenshot.",
+          "progress_percentage": 0
+        }
+      ],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "next_step": null
+    },
+    {
+      "task_id": "P2P-007",
+      "task_name": "Link the project from nlarchive.com /proyectos/ and /nosotros/",
+      "description": "Integration target from the brief. /proyectos/: the 'Ingeniería, IA y Código Abierto' section now renders a list (engineering.more) with a P2P Message card (live demo + GitHub). /nosotros/: new 'Código abierto' section (about.open_source) linking the demo, the repo, TAGO and the GitHub org. Organization JSON-LD gets sameAs github.com/NLarchive. Tracked on the site side as NLA-007.",
+      "start_date": "2026-11-26",
+      "end_date": null,
+      "due_date": null,
+      "priority": "Critical",
+      "status": "In Review",
+      "progress_percentage": 90,
+      "estimated_hours": 1.5,
+      "actual_hours": 0,
+      "complexity": "Medium",
+      "blocker_reason": "Hostinger publication and live verification pending.",
+      "is_critical_path": true,
+      "category_name": "Integration",
+      "hex_ring": null,
+      "related_paths": [
+        "D:/web/web-nlarchive/nlarchive-v1/private/content/pages.json",
+        "D:/web/web-nlarchive/nlarchive-v1/private/src/pages.php",
+        "D:/web/web-nlarchive/nlarchive-v1/private/src/layout.php"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "/proyectos/ HTML contains both links and the card title",
+        "/nosotros/ HTML contains #open-source-title and the 4 links",
+        "Organization JSON-LD sameAs includes https://github.com/NLarchive",
+        "Copy does not claim 'quantum-safe' and states the handshake is not externally audited",
+        "Published to production and links return 200"
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "php -l private/src/pages.php",
+          "php -l private/src/layout.php",
+          "cd public_html/proyectos && php index.php | grep -c web-p2p-message",
+          "cd public_html/nosotros && php index.php | grep -c open-source-title",
+          "curl -s https://www.nlarchive.com/proyectos/ | grep -c nlarchive.github.io/web-p2p-message"
+        ],
+        "success_signal": "No syntax errors; counts ≥ 1 locally and in production.",
+        "evidence": [
+          "2026-11-26 php 8 render: /proyectos/ 4/4 expected strings, /nosotros/ 4/4, Organization.sameAs=['https://github.com/NLarchive']",
+          "2026-11-26 Spanish sales copy identifies 172 public tests, a private security suite, and a strict Content Security Policy."
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-005",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "next_step": "Publish with the site's usual deploy (see NLA-003) after P2P-010 so the demo already shows the brand backlink."
+    },
+    {
+      "task_id": "P2P-008",
+      "task_name": "Decide whether to publish the security interceptor suite",
+      "description": "Keep the security interceptor suite private. Public copy distinguishes 172 public automated tests from the separate private security suite.",
+      "start_date": "2026-11-26",
+      "end_date": "2026-11-26",
+      "due_date": null,
+      "priority": "High",
+      "status": "Done",
+      "progress_percentage": 100,
+      "estimated_hours": 4,
+      "actual_hours": 0,
+      "complexity": "Medium",
+      "blocker_reason": "",
+      "is_critical_path": false,
+      "category_name": "Security",
+      "hex_ring": null,
+      "related_paths": [
+        "message-interceptor/",
+        ".gitignore",
+        "README.md"
+      ],
+      "assigned_workers": [
+        {
+          "name": "NLarchive maintainer",
+          "role": "Developer",
+          "worker_id": "nlarchive-maintainer"
+        }
+      ],
+      "acceptance_criteria": [
+        "The private suite stays out of version control and CI.",
+        "The README and portfolio copy state what buyers can verify publicly."
+      ],
+      "verification": {
+        "strategy": "manual",
+        "commands": [],
+        "success_signal": "Decision recorded; public claims match the public repo.",
+        "evidence": [
+          "2026-11-26 README and the NLarchive portfolio copy disclose that the security suite is private."
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-001",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "next_step": null
+    },
+    {
+      "task_id": "P2P-009",
+      "task_name": "Cover Firefox and WebKit in E2E",
+      "description": "All automated browser tests run in Chromium only (now disclosed in README Known Limitations). Add firefox/webkit projects to playwright.config.js and the CI e2e job. Could not be run by the agent: neither environment can download Firefox/WebKit builds. Details: tests/node.tasks.json TST-004.",
+      "start_date": null,
+      "end_date": null,
+      "due_date": null,
+      "priority": "Medium",
+      "status": "Not Started",
+      "progress_percentage": 0,
+      "estimated_hours": 3,
+      "actual_hours": 0,
+      "complexity": "Medium",
+      "blocker_reason": "",
+      "is_critical_path": false,
+      "category_name": "Quality",
+      "hex_ring": null,
+      "related_paths": [
+        "playwright.config.js",
+        ".github/workflows/ci.yml"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "playwright.config.js has firefox and webkit projects",
+        "CI runs all three and passes (or known WebRTC gaps are documented and skipped)"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npx playwright test"
+        ],
+        "success_signal": "All projects pass.",
+        "evidence": []
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-002",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": [],
+      "child_graph": "tests/node.tasks.json"
+    },
+    {
+      "task_id": "P2P-010",
+      "task_name": "Commit, push and confirm the deploy",
+      "description": "All changes are in the working tree of D:\\web\\web-p2p-message (not committed: git on the mounted folder cannot delete its lock files without delete permission, and pushing needs the maintainer's SSH key). After pushing, confirm both workflows and the live page metadata.",
+      "start_date": null,
+      "end_date": null,
+      "due_date": null,
+      "priority": "Critical",
+      "status": "In Progress",
+      "progress_percentage": 60,
+      "estimated_hours": 0.5,
+      "actual_hours": 0,
+      "complexity": "Low",
+      "blocker_reason": "Workflow and live verification pending.",
+      "is_critical_path": true,
+      "category_name": "CI/CD",
+      "hex_ring": null,
+      "related_paths": [
+        "."
+      ],
+      "assigned_workers": [
+        {
+          "name": "NLarchive maintainer",
+          "role": "Developer",
+          "worker_id": "nlarchive-maintainer"
+        }
+      ],
+      "acceptance_criteria": [
+        "Commit on master with the changed files listed in git status (+ src/ui/og-image.png, tests/e2e/site-integration.spec.js)",
+        "CI and Deploy GitHub Pages runs succeed",
+        "Live page serves the canonical/og tags and og-image.png"
+      ],
+      "verification": {
+        "strategy": "command",
+        "commands": [
+          "gh run list --branch master --limit 2",
+          "curl -s https://nlarchive.github.io/web-p2p-message/ | grep -c 'rel=\"canonical\"'",
+          "curl -sI https://nlarchive.github.io/web-p2p-message/src/ui/og-image.png | head -1",
+          "TEST_BASE_URL=https://nlarchive.github.io/web-p2p-message npx playwright test site-integration --project=chromium"
+        ],
+        "success_signal": "Both runs success; canonical count 1; og-image 200; site-integration passes against production.",
+        "evidence": [
+          "2026-11-26 Prepared the Windows release with the task graphs, the portfolio E2E spec and the new share image."
+        ]
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-002",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-003",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-004",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-005",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-006",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "P2P-011",
+      "task_name": "Commission an external review of the hybrid post-quantum handshake",
+      "description": "README and docs say the XWing handshake is not production-audited. For security-conscious buyers an independent review is the next credibility step. Out of scope for this graph's closure; tracked so the claim stays honest until done.",
+      "start_date": null,
+      "end_date": null,
+      "due_date": null,
+      "priority": "Low",
+      "status": "Not Started",
+      "progress_percentage": 0,
+      "estimated_hours": 0,
+      "actual_hours": 0,
+      "complexity": "High",
+      "blocker_reason": "Requires an external reviewer and budget.",
+      "is_critical_path": false,
+      "category_name": "Security",
+      "hex_ring": null,
+      "related_paths": [
+        "src/adapters/crypto/HybridPqCryptoAdapter.js",
+        "docs/security.md"
+      ],
+      "assigned_workers": [
+        {
+          "name": "NLarchive maintainer",
+          "role": "Developer",
+          "worker_id": "nlarchive-maintainer"
+        }
+      ],
+      "acceptance_criteria": [
+        "Review report linked from docs/security.md",
+        "Findings fixed or documented"
+      ],
+      "verification": {
+        "strategy": "manual",
+        "commands": [],
+        "success_signal": "Report published.",
+        "evidence": []
+      },
+      "dependencies": [],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    },
+    {
+      "task_id": "P2P-012",
+      "task_name": "Graph end — portfolio integration accepted",
+      "description": "Terminal node. Closed when every check below passes on master and on production.",
+      "start_date": null,
+      "end_date": null,
+      "due_date": null,
+      "priority": "Critical",
+      "status": "Not Started",
+      "progress_percentage": 0,
+      "estimated_hours": 0.5,
+      "actual_hours": 0,
+      "complexity": "Low",
+      "blocker_reason": "",
+      "is_critical_path": true,
+      "category_name": "Verification",
+      "hex_ring": null,
+      "related_paths": [
+        "node.tasks.json"
+      ],
+      "assigned_workers": [
+        {
+          "name": "Claude (agent)",
+          "role": "Developer",
+          "worker_id": "claude-agent"
+        }
+      ],
+      "acceptance_criteria": [
+        "P2P-002..P2P-007 and P2P-010 Done",
+        "P2P-008 decided",
+        "All graph_end commands green"
+      ],
+      "verification": {
+        "strategy": "test",
+        "commands": [
+          "npm run test:ci",
+          "npm run test:e2e",
+          "npm run preview & npm run test:security",
+          "gh run list --workflow ci.yml --branch master --limit 1 --json conclusion -q '.[0].conclusion'",
+          "curl -s https://www.nlarchive.com/proyectos/ | grep -c nlarchive.github.io/web-p2p-message",
+          "curl -s https://www.nlarchive.com/nosotros/ | grep -c github.com/NLarchive/web-p2p-message"
+        ],
+        "success_signal": "163 unit + smoke pass, 9 E2E pass, 11/11 interceptor, CI 'success', both production counts ≥ 1.",
+        "evidence": []
+      },
+      "dependencies": [
+        {
+          "predecessor_task_id": "P2P-002",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-003",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-004",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-005",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-006",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-007",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-008",
+          "type": "FS",
+          "lag_days": 0
+        },
+        {
+          "predecessor_task_id": "P2P-010",
+          "type": "FS",
+          "lag_days": 0
+        }
+      ],
+      "parent_task_id": 0,
+      "subtasks": [],
+      "attachments": [],
+      "links": [],
+      "comments": []
+    }
+  ],
+  "navigation": {
+    "rootModule": "node.tasks.json",
+    "modules": [
+      {
+        "path": "node.tasks.json",
+        "label": "Portfolio integration (root)",
+        "name": "web-p2p-message",
+        "taskIds": [
+          "P2P-001",
+          "P2P-002",
+          "P2P-003",
+          "P2P-004",
+          "P2P-005",
+          "P2P-006",
+          "P2P-007",
+          "P2P-008",
+          "P2P-009",
+          "P2P-010",
+          "P2P-011",
+          "P2P-012"
+        ]
+      },
+      {
+        "path": "src/node.tasks.json",
+        "label": "Live demo: SEO, brand, hardening",
+        "name": "src",
+        "taskIds": [
+          "SRC-001",
+          "SRC-002",
+          "SRC-003",
+          "SRC-004",
+          "SRC-005"
+        ],
+        "parentTaskId": "P2P-005"
+      },
+      {
+        "path": "tests/node.tasks.json",
+        "label": "Test infrastructure and CI",
+        "name": "tests",
+        "taskIds": [
+          "TST-001",
+          "TST-002",
+          "TST-003",
+          "TST-004"
+        ],
+        "parentTaskId": "P2P-002"
+      }
+    ],
+    "parent": {
+      "path": "D:/web/web-nlarchive/nlarchive-v1/node.tasks.json",
+      "taskIds": [
+        "NLA-007"
+      ]
+    },
+    "superseded": [
+      {
+        "path": "p2p-message-project-tasks.json",
+        "note": "historical MVP plan"
+      }
+    ]
+  }
+}

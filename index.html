@@ -4,7 +4,44 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-8m4Ib8UKIb9R+Gdt2BgcqImggXQ/s6r18awxyMvoLMo='; style-src 'self'; img-src data:; object-src 'none'; base-uri 'self'; connect-src 'self'">
-  <title>P2P Message</title>
+  <title>P2P Message — End-to-end encrypted browser-to-browser chat | NLarchive</title>
+  <meta name="description" content="Open-source, end-to-end encrypted peer-to-peer chat that runs in the browser with no message server: WebRTC DataChannels, Double Ratchet with a hybrid post-quantum handshake (ML-KEM-768 + X25519), strict Content Security Policy and 170+ automated and security tests. Built by NLarchive.">
+  <meta name="author" content="NLarchive SpA">
+  <link rel="canonical" href="https://nlarchive.github.io/web-p2p-message/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="NLarchive">
+  <meta property="og:title" content="P2P Message — End-to-end encrypted browser-to-browser chat">
+  <meta property="og:description" content="Serverless WebRTC chat with Double Ratchet, hybrid post-quantum handshake, strict CSP and 170+ automated and security tests. Open source (AGPL-3.0) by NLarchive.">
+  <meta property="og:url" content="https://nlarchive.github.io/web-p2p-message/">
+  <meta property="og:image" content="https://nlarchive.github.io/web-p2p-message/src/ui/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="P2P Message app: encrypted peer-to-peer chat in the browser">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "P2P Message",
+      "url": "https://nlarchive.github.io/web-p2p-message/",
+      "description": "Browser-to-browser end-to-end encrypted chat using WebRTC DataChannels, WebCrypto, a Double Ratchet and a hybrid post-quantum handshake.",
+      "applicationCategory": "CommunicationApplication",
+      "operatingSystem": "Any modern web browser",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "sameAs": ["https://github.com/NLarchive/web-p2p-message"],
+      "image": "https://nlarchive.github.io/web-p2p-message/src/ui/og-image.png",
+      "author": { "@id": "https://www.nlarchive.com/#organization" },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://www.nlarchive.com/#organization",
+        "name": "NLarchive SpA",
+        "url": "https://www.nlarchive.com/",
+        "sameAs": ["https://github.com/NLarchive"]
+      }
+    }
+  </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
   <link rel="stylesheet" href="src/ui/styles.css">
   <script type="importmap">
@@ -19,6 +56,13 @@
 </head>
 <body>
   <div id="app"></div>
+  <noscript>
+    <main class="app-shell">
+      <h1>P2P Message</h1>
+      <p>End-to-end encrypted, browser-to-browser chat. This app needs JavaScript and WebRTC to run.</p>
+      <p><a href="https://github.com/NLarchive/web-p2p-message">Source code and security documentation on GitHub</a> · <a href="https://www.nlarchive.com/proyectos/">Built by NLarchive</a></p>
+    </main>
+  </noscript>
   <script type="module" src="./src/ui/app.js"></script>
 </body>
 </html>

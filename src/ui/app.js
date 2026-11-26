@@ -5,6 +5,8 @@ import { ControlAction } from '../core/domain/Envelope.js';
 const $ = (sel) => document.querySelector(sel);
 const app = document.getElementById('app');
 const SOURCE_URL = 'https://github.com/NLarchive/web-p2p-message';
+const SECURITY_NOTES_URL = `${SOURCE_URL}/blob/master/docs/security.md`;
+const BRAND_URL = 'https://www.nlarchive.com/proyectos/';
 const HAS_WEBRTC = typeof RTCPeerConnection !== 'undefined';
 
 let manager;
@@ -103,6 +105,8 @@ function render(html) {
       ${html}
       <footer class="app-footer">
         <a href="${SOURCE_URL}" target="_blank" rel="noreferrer">Source code (AGPL-3.0)</a>
+        <span aria-hidden="true"> · </span>
+        <a href="${BRAND_URL}" target="_blank" rel="noopener" id="brand-link">Built by NLarchive</a>
       </footer>
     </div>
   `;
@@ -797,7 +801,7 @@ function showSessionDetail(sessionId) {
       ${s.status === SessionStatus.CONNECTED ? `<button id="btn-open-chat">Open Chat</button>` : ''}
       <button id="btn-back" class="btn-outline">Back</button>
     </div>
-    <p class="status fs-xs mt-md"><a href="https://github.com/NLarchive/web-p2p-message/blob/main/docs/security.md" target="_blank" rel="noreferrer">Security notes</a> — browser compromise is out of scope; this app does not add extra risks.</p>
+    <p class="status fs-xs mt-md"><a href="${SECURITY_NOTES_URL}" target="_blank" rel="noreferrer">Security notes</a> — browser compromise is out of scope; this app does not add extra risks.</p>
     <p id="error" class="error"></p>
   `);
 
@@ -1056,4 +1060,21 @@ async function boot() {
   showSessionList();
 }
 
-boot();
+// ── Clickjacking guard ──
+// CSP `frame-ancestors` is ignored when delivered via <meta>, and GitHub Pages
+// cannot send an X-Frame-Options / CSP header. Refuse to run inside a frame so a
+// hostile page cannot overlay the invite/answer UI.
+function isFramed() {
+  try { return window.self !== window.top; } catch { return true; }
+}
+
+if (isFramed()) {
+  app.innerHTML = `
+    <div class="app-shell">
+      <p class="status" id="framed-warning">For your security this app cannot run inside a frame.
+        <a href="${window.location.href.replace(/"/g, '%22')}" target="_top" rel="noopener">Open P2P Message directly</a>.</p>
+    </div>
+  `;
+} else {
+  boot();
+}
