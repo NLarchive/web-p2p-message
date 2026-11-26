@@ -202,15 +202,15 @@
       "task_name": "Confirm CI green on master",
       "description": "After TST-001/TST-002 are pushed (P2P-010), watch the run. If 'Install Playwright browsers' still fails, open the job log (requires sign-in) and record the error here.",
       "start_date": null,
-      "end_date": null,
+      "end_date": "2026-11-26",
       "due_date": null,
       "priority": "High",
-      "status": "Not Started",
-      "progress_percentage": 0,
+      "status": "Done",
+      "progress_percentage": 100,
       "estimated_hours": 0.3,
       "actual_hours": 0,
       "complexity": "Low",
-      "blocker_reason": "Waits on push (P2P-010).",
+      "blocker_reason": "",
       "is_critical_path": true,
       "category_name": "CI/CD",
       "hex_ring": null,
@@ -233,7 +233,9 @@
           "gh run watch $(gh run list --workflow ci.yml --branch master --limit 1 --json databaseId -q '.[0].databaseId')"
         ],
         "success_signal": "Run completes with success",
-        "evidence": []
+        "evidence": [
+          "Both CI jobs passed on master for f60679d: https://github.com/NLarchive/web-p2p-message/actions/runs/45908444467"
+        ]
       },
       "dependencies": [
         {
@@ -251,7 +253,8 @@
       "subtasks": [],
       "attachments": [],
       "links": [],
-      "comments": []
+      "comments": [],
+      "next_step": null
     },
     {
       "task_id": "TST-004",
@@ -261,12 +264,12 @@
       "end_date": null,
       "due_date": null,
       "priority": "High",
-      "status": "Not Started",
-      "progress_percentage": 0,
+      "status": "In Review",
+      "progress_percentage": 85,
       "estimated_hours": 3,
       "actual_hours": 0,
       "complexity": "Medium",
-      "blocker_reason": "Agent environments cannot download Firefox/WebKit; run in CI or on the maintainer's machine.",
+      "blocker_reason": "Firefox and macOS WebKit CI runs pending.",
       "is_critical_path": false,
       "category_name": "Quality",
       "hex_ring": null,
@@ -291,7 +294,9 @@
           "npx playwright test"
         ],
         "success_signal": "All projects pass",
-        "evidence": []
+        "evidence": [
+          "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15."
+        ]
       },
       "dependencies": [
         {
@@ -304,7 +309,8 @@
       "subtasks": [],
       "attachments": [],
       "links": [],
-      "comments": []
+      "comments": [],
+      "next_step": "Check workflow results for both engines."
     }
   ],
   "navigation": {

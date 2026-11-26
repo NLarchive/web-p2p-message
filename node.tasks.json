@@ -190,15 +190,15 @@
       "task_name": "Restore a green CI badge on GitHub (E2E job failing since 2026-03-20)",
       "description": "The public repo shows a failing CI on master: run 45042486416 (ef4d7b9) fails at 'Install Playwright browsers' in the e2e-tests job; the previous commit b3fea1d also failed. A red badge undermines the '160+ tests' sales claim. Fix: upgrade @playwright/test to 1.65.1 (done, E2E re-verified) and pin runner/Node in the workflows (needs maintainer: .github/ is write-protected for the agent). Detailed steps in tests/node.tasks.json.",
       "start_date": "2026-11-26",
-      "end_date": null,
+      "end_date": "2026-11-26",
       "due_date": null,
       "priority": "Critical",
-      "status": "In Review",
-      "progress_percentage": 90,
+      "status": "Done",
+      "progress_percentage": 100,
       "estimated_hours": 1,
       "actual_hours": 0,
       "complexity": "Medium",
-      "blocker_reason": "Awaiting CI on the release commit.",
+      "blocker_reason": "",
       "is_critical_path": true,
       "category_name": "CI/CD",
       "hex_ring": null,
@@ -229,7 +229,8 @@
         "success_signal": "success",
         "evidence": [
           "2026-11-26 Playwright 1.65.1: 9/9 E2E passed locally (Chromium)",
-          "2026-11-26 Pinned all three workflow jobs to ubuntu-24.04 and Node 22. Local Windows Vitest (163 tests), build and smoke passed."
+          "2026-11-26 Pinned all three workflow jobs to ubuntu-24.04 and Node 22. Local Windows Vitest (163 tests), build and smoke passed.",
+          "CI and both Pages jobs passed for f60679d. CI: https://github.com/NLarchive/web-p2p-message/actions/runs/45908444467"
         ]
       },
       "dependencies": [
@@ -247,7 +248,8 @@
       "draft_content": {
         "workflow_change": "--- .github/workflows/ci.yml and .github/workflows/deploy-pages.yml (every job)\n-    runs-on: ubuntu-latest\n+    runs-on: ubuntu-24.04\n...\n-          node-version: 20\n+          node-version: 22\n(keep env FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true as is)"
       },
-      "child_graph": "tests/node.tasks.json"
+      "child_graph": "tests/node.tasks.json",
+      "next_step": null
     },
     {
       "task_id": "P2P-003",
@@ -671,12 +673,12 @@
       "end_date": null,
       "due_date": null,
       "priority": "Medium",
-      "status": "Not Started",
-      "progress_percentage": 0,
+      "status": "In Review",
+      "progress_percentage": 85,
       "estimated_hours": 3,
       "actual_hours": 0,
       "complexity": "Medium",
-      "blocker_reason": "",
+      "blocker_reason": "Firefox and macOS WebKit CI runs pending.",
       "is_critical_path": false,
       "category_name": "Quality",
       "hex_ring": null,
@@ -701,7 +703,9 @@
           "npx playwright test"
         ],
         "success_signal": "All projects pass.",
-        "evidence": []
+        "evidence": [
+          "Configured Playwright Firefox on Ubuntu 24.04 and WebKit on macOS 15 as separate CI jobs."
+        ]
       },
       "dependencies": [
         {
@@ -715,22 +719,23 @@
       "attachments": [],
       "links": [],
       "comments": [],
-      "child_graph": "tests/node.tasks.json"
+      "child_graph": "tests/node.tasks.json",
+      "next_step": "Check the result of both browser jobs and make them required once they pass."
     },
     {
       "task_id": "P2P-010",
       "task_name": "Commit, push and confirm the deploy",
       "description": "All changes are in the working tree of D:\\web\\web-p2p-message (not committed: git on the mounted folder cannot delete its lock files without delete permission, and pushing needs the maintainer's SSH key). After pushing, confirm both workflows and the live page metadata.",
       "start_date": null,
-      "end_date": null,
+      "end_date": "2026-11-26",
       "due_date": null,
       "priority": "Critical",
-      "status": "In Progress",
-      "progress_percentage": 60,
+      "status": "Done",
+      "progress_percentage": 100,
       "estimated_hours": 0.5,
       "actual_hours": 0,
       "complexity": "Low",
-      "blocker_reason": "Workflow and live verification pending.",
+      "blocker_reason": "",
       "is_critical_path": true,
       "category_name": "CI/CD",
       "hex_ring": null,
@@ -759,7 +764,8 @@
         ],
         "success_signal": "Both runs success; canonical count 1; og-image 200; site-integration passes against production.",
         "evidence": [
-          "2026-11-26 Prepared the Windows release with the task graphs, the portfolio E2E spec and the new share image."
+          "2026-11-26 Prepared the Windows release with the task graphs, the portfolio E2E spec and the new share image.",
+          "Windows release pushed. CI and Pages passed for f60679d and 4/4 live Chromium checks verified canonical, Open Graph, share image HTTP 200, attribution, CSP and frame guard. Pages: https://github.com/NLarchive/web-p2p-message/actions/runs/45908444639"
         ]
       },
       "dependencies": [
@@ -793,7 +799,8 @@
       "subtasks": [],
       "attachments": [],
       "links": [],
-      "comments": []
+      "comments": [],
+      "next_step": null
     },
     {
       "task_id": "P2P-011",
